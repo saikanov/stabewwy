@@ -59,6 +59,18 @@ streaming services, ...) still works the same, this fork only adds on top of it.
 
 ---
 
+## :inbox_tray: Download (Windows)
+
+Grab `Stabewwy-<version>-Setup-x64.exe` from the [Releases](https://github.com/saikanov/stabewwy/releases) page and run
+it. It's a one-click installer: no questions and no administrator rights needed, it installs to
+`%LOCALAPPDATA%\Programs\Stabewwy`, adds Start menu and desktop shortcuts and starts the player.
+Uninstall it from Windows Settings → Apps like any other program.
+
+Stabewwy uses the same settings and collection database as Strawberry, so if you already use Strawberry your music and
+playlists show up right away.
+
+---
+
 ## :computer: Building on Windows
 
 Requirements (one time):
@@ -83,8 +95,12 @@ tools\windows\build.bat
 ```
 
 The first build takes a while, later builds only recompile what changed. Start `build\strawberry.exe`
-(the DLLs and plugins it needs are copied next to it). See [tools/README.md](tools/README.md) for more, including how
-to change the icons.
+(the DLLs and plugins it needs are copied next to it).
+
+To make the installer, install [Inno Setup 6](https://jrsoftware.org/isinfo.php) (`winget install JRSoftware.InnoSetup`)
+and run `tools\windows\make-installer.bat`, it ends up in `build\installer`.
+
+See [tools/README.md](tools/README.md) for more, including how to change the icons.
 
 On Linux and macOS the regular Strawberry build instructions apply (`cmake -S . -B build && cmake --build build`),
 the Wallpaper Engine picker is Windows only.

@@ -16,6 +16,17 @@ Requirements (one time):
 Then run `tools\windows\build.bat`. The first build takes a while, later ones only rebuild what changed. It works
 while Strawberry is running (the old exe is moved aside), the new version is used from the next start.
 
+## windows/make-installer.bat
+
+Makes the one-click installer `build\installer\Stabewwy-<version>-Setup-x64.exe` from what `build.bat` built, using
+`windows/installer.iss`. Needs [Inno Setup 6](https://jrsoftware.org/isinfo.php) (`winget install JRSoftware.InnoSetup`).
+
+- `tools\windows\make-installer.bat` uses `1.0.0-<git commit>` as version, or pass one: `tools\windows\make-installer.bat 1.1.0`.
+- The installer installs per user to `%LOCALAPPDATA%\Programs\Stabewwy` without asking anything (no administrator
+  rights needed), adds Start menu and desktop shortcuts and an uninstaller, and starts the player.
+- The Visual C++ runtime from the Visual Studio Build Tools is bundled next to the exe, so it also runs on PCs without
+  the Visual C++ Redistributable.
+
 ## art/
 
 The icons, logo and mascot are drawn as SVG in these pages and rendered to PNG with headless Microsoft Edge.
