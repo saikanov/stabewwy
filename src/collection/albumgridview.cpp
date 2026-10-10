@@ -27,6 +27,8 @@
 #include <QLineEdit>
 #include <QLabel>
 #include <QListView>
+#include <QScrollBar>
+#include <QResizeEvent>
 #include <QMenu>
 #include <QAction>
 #include <QTimer>
@@ -98,7 +100,7 @@ AlbumGridView::AlbumGridView(QWidget *parent)
   view_->setMovement(QListView::Static);
   view_->setWrapping(true);
   view_->setUniformItemSizes(true);
-  view_->setSpacing(4);
+  view_->setSpacing(0);  // The grid size (see ListView::UpdateTileSize) spaces the tiles
   view_->setSelectionMode(QAbstractItemView::ExtendedSelection);
   view_->setDragEnabled(true);
   view_->setDragDropMode(QAbstractItemView::DragOnly);
@@ -300,6 +302,45 @@ void AlbumGridView::ListView::paintEvent(QPaintEvent *e) {
   }
 
   QListView::paintEvent(e);
+
+}
+
+void AlbumGridView::ListView::resizeEvent(QResizeEvent *e) {
+
+  QListView::resizeEvent(e);
+  UpdateTileSize();
+
+}
+
+bool AlbumGridView::ListView::viewportEvent(QEvent *e) {
+
+  // The viewport also changes width when the scrollbar appears or disappears.
+  const bool ret = QListView::viewportEvent(e);
+  if (e->type() == QEvent::Resize) UpdateTileSize();
+  return ret;
+
+}
+
+void AlbumGridView::ListView::UpdateTileSize() {
+
+  // Use the width without the scrollbar, whether it's shown or not, so the columns don't change when it appears.
+  // Keep a few pixels spare: when the tiles add up to exactly the viewport width the last one wraps to the next row.
+  const int scrollbar_width = verticalScrollBar()->isVisible() ? 0 : verticalScrollBar()->sizeHint().width();
+  const int available = viewport()->width() - scrollbar_width - 6;
+  if (available <= 0) return;
+
+  constexpr int kTargetTileWidth = 190;
+  constexpr int kMinTileWidth = 120;
+  int columns = std::max(1, static_cast<int>(available / static_cast<double>(kTargetTileWidth) + 0.5));
+  if (columns < 2 && available >= 2 * kMinTileWidth) columns = 2;
+  const int tile_width = available / columns;
+  const int cover_size = std::min(tile_width - 24, AlbumGridView::kCoverSize);
+
+  QFont title_font = font();
+  title_font.setBold(true);
+  const int text_height = QFontMetrics(title_font).height() + QFontMetrics(font()).height() + 1;
+  const QSize grid_size(tile_width, kTileMargin + cover_size + 8 + text_height + 12);
+  if (gridSize() != grid_size) setGridSize(grid_size);
 
 }
 
@@ -535,7 +576,8 @@ void AlbumGridDelegate::paint(QPainter *painter, const QStyleOptionViewItem &opt
   }
 
   // Cover with a soft shadow and rounded corners
-  const int cover_size = AlbumGridView::kCoverSize;
+  // The tiles are sized by the view to fill its width, the cover follows the tile width.
+  const int cover_size = std::min(tile.width() - 20, AlbumGridView::kCoverSize);
   const QRect cover_rect(tile.left() + (tile.width() - cover_size) / 2, tile.top() + kTileMargin, cover_size, cover_size);
 
   QPainterPath shadow_path;

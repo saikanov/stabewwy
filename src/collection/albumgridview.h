@@ -71,7 +71,7 @@ class AlbumGridView : public QWidget {
     Role_HasCover,
   };
 
-  static constexpr int kCoverSize = 150;
+  static constexpr int kCoverSize = 220;  // Maximum cover size, tiles get smaller to fit the width of the view
 
   // The album grid has its own background, set in "Customize appearance".
   static constexpr char kSettingsGroup[] = "AlbumGrid";
@@ -112,6 +112,12 @@ class AlbumGridView : public QWidget {
    protected:
     void paintEvent(QPaintEvent *e) override;
     void scrollContentsBy(const int dx, const int dy) override;
+    void resizeEvent(QResizeEvent *e) override;
+    bool viewportEvent(QEvent *e) override;
+   public:
+    // Splits the width of the view in equal columns (at least two), so the tiles fill it without a gap on the side.
+    void UpdateTileSize();
+   protected:
    private:
     QImage background_;
     QPixmap background_scaled_;
