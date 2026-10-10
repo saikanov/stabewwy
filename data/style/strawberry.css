@@ -4,7 +4,7 @@
 }
 
 #playlist[default_background_enabled = "true"] {
-  background-image: url(:pictures/strawberry-faded.png);
+  background-image: url(:pictures/mascot.png);
   background-attachment: fixed;
   background-position: bottom right;
   background-repeat: none;

@@ -30,15 +30,73 @@
 #include <QImageReader>
 #include <QSize>
 #include <QSettings>
+#include <QIconEngine>
+#include <QPainter>
+#include <QPixmap>
+#include <QColor>
+#include <QStringList>
 
 #include "logging.h"
 #include "standardpaths.h"
 #include "settings.h"
 #include "includes/iconmapper.h"
 #include "iconloader.h"
+#include "cutetheme.h"
 #include "constants/appearancesettings.h"
 
 using namespace Qt::Literals::StringLiterals;
+
+namespace {
+
+// Paints a white icon mask in the theme colors (modern icons). The color is taken when painting, so icons follow theme changes.
+class TintedIconEngine : public QIconEngine {
+ public:
+  explicit TintedIconEngine(const QIcon &mask, const bool accent) : mask_(mask), accent_(accent) {}
+
+  void paint(QPainter *painter, const QRect &rect, const QIcon::Mode mode, const QIcon::State state) override {
+    const qreal dpr = painter->device() ? painter->device()->devicePixelRatioF() : 1.0;
+    painter->drawPixmap(rect, scaledPixmap(rect.size(), mode, state, dpr));
+  }
+
+  QPixmap pixmap(const QSize &size, const QIcon::Mode mode, const QIcon::State state) override {
+    return Tint(mask_.pixmap(size, QIcon::Normal, state), mode);
+  }
+
+  QPixmap scaledPixmap(const QSize &size, const QIcon::Mode mode, const QIcon::State state, const qreal scale) override {
+    return Tint(mask_.pixmap(size, scale, QIcon::Normal, state), mode);
+  }
+
+  QSize actualSize(const QSize &size, const QIcon::Mode mode, const QIcon::State state) override {
+    return mask_.actualSize(size, mode, state);
+  }
+
+  QList<QSize> availableSizes(const QIcon::Mode mode, const QIcon::State state) override {
+    return mask_.availableSizes(mode, state);
+  }
+
+  QIconEngine *clone() const override { return new TintedIconEngine(mask_, accent_); }
+  QString key() const override { return u"TintedIconEngine"_s; }
+
+ private:
+  QPixmap Tint(QPixmap pixmap, const QIcon::Mode mode) const {
+    if (pixmap.isNull()) return pixmap;
+    const CuteTheme::Colors &theme = CuteTheme::Current();
+    QColor color = accent_ ? theme.accent : theme.text;
+    if (mode == QIcon::Disabled) {
+      color = CuteTheme::Mix(theme.text, theme.base, 0.6);
+    }
+    QPainter p(&pixmap);
+    p.setCompositionMode(QPainter::CompositionMode_SourceIn);
+    p.fillRect(QRect(QPoint(0, 0), pixmap.size()), color);
+    p.end();
+    return pixmap;
+  }
+
+  QIcon mask_;
+  bool accent_;
+};
+
+}  // namespace
 
 bool IconLoader::system_icons_ = false;
 bool IconLoader::custom_icons_ = false;
@@ -158,6 +216,20 @@ QIcon IconLoader::Load(const QString &name, const bool system_icon, const int fi
       }
     }
     if (!ret.isNull()) return ret;
+  }
+
+  // Modern monochrome icons, tinted with the theme colors.
+  if (CuteTheme::Current().modern_icons) {
+    QIcon mask;
+    const QString modern_path(u":/icons/modern/%1x%2/%3.png"_s);
+    for (int s : std::as_const(sizes)) {
+      const QString filename(modern_path.arg(s).arg(s).arg(name));
+      if (QFile::exists(filename)) mask.addFile(filename, QSize(s, s));
+    }
+    if (!mask.isNull()) {
+      static const QStringList accent_icons = { u"media-playback-start"_s, u"media-playback-pause"_s };
+      return QIcon(new TintedIconEngine(mask, accent_icons.contains(name)));
+    }
   }
 
   const QString path(u":/icons/%1x%2/%3.png"_s);

@@ -33,6 +33,7 @@
 #include <memory>
 
 #include <QMainWindow>
+#include <QBoxLayout>
 #include <QApplication>
 #include <QObject>
 #include <QWidget>
@@ -136,6 +137,11 @@
 #include "collection/collectionfilter.h"
 #include "collection/collectionmodel.h"
 #include "collection/collectionview.h"
+#include "collection/albumgridview.h"
+#include "dialogs/customizeappearancedialog.h"
+#include "core/videobackground.h"
+#include "core/cutetheme.h"
+#include "playlist/nowplayingcard.h"
 #include "playlist/playlist.h"
 #include "playlist/playlistbackend.h"
 #include "playlist/playlistcontainer.h"
@@ -337,6 +343,7 @@ MainWindow::MainWindow(Application *app,
 #endif
       context_view_(new ContextView(this)),
       collection_view_(new CollectionViewContainer(this)),
+      albumgrid_view_(new AlbumGridView(this)),
       file_view_(new FileView(this)),
       device_view_(new DeviceViewContainer(this)),
       playlist_list_(new PlaylistListContainer(this)),
@@ -468,6 +475,7 @@ MainWindow::MainWindow(Application *app,
   // Add tabs to the fancy tab widget
   ui_->tabs->AddTab(context_view_, u"context"_s, IconLoader::Load(u"strawberry"_s, true, 0, 32), tr("Context"));
   ui_->tabs->AddTab(collection_view_, u"collection"_s, IconLoader::Load(u"library-music"_s, true, 0, 32), tr("Collection"));
+  ui_->tabs->AddTab(albumgrid_view_, u"albums"_s, IconLoader::Load(u"albums"_s, true, 0, 32), tr("Albums"));
   ui_->tabs->AddTab(queue_view_, u"queue"_s, IconLoader::Load(u"footsteps"_s, true, 0, 32), tr("Queue"));
   ui_->tabs->AddTab(playlist_list_, u"playlists"_s, IconLoader::Load(u"view-media-playlist"_s, true, 0, 32), tr("Playlists"));
   ui_->tabs->AddTab(smartplaylists_view_, u"smartplaylists"_s, IconLoader::Load(u"view-media-playlist"_s, true, 0, 32), tr("Smart playlists"));
@@ -531,6 +539,9 @@ MainWindow::MainWindow(Application *app,
 
   collection_view_->view()->setModel(app_->collection()->model()->filter());
   collection_view_->view()->Init(app->task_manager(), app->tagreader_client(), app->network(), app->albumcover_loader(), app->current_albumcover_loader(), app->cover_providers(), app->lyrics_providers(), app->collection(), app->device_manager(), app->streaming_services());
+  albumgrid_view_->Init(app->collection_backend(), app->albumcover_loader());
+  QObject::connect(albumgrid_view_, &AlbumGridView::AddToPlaylist, this, &MainWindow::AddToPlaylist);
+  QObject::connect(albumgrid_view_, &AlbumGridView::Shown, this, &MainWindow::WidenSidebarForAlbums, Qt::QueuedConnection);
   device_view_->view()->Init(app->task_manager(), app->tagreader_client(), app->device_manager(), app->collection_model()->directory_model());
   playlist_list_->Init(app_->task_manager(), app->tagreader_client(), app_->playlist_manager(), app_->playlist_backend(), app_->device_manager());
 
@@ -631,6 +642,9 @@ MainWindow::MainWindow(Application *app,
   QObject::connect(ui_->action_auto_complete_tags, &QAction::triggered, this, &MainWindow::AutoCompleteTags);
 #endif
   QObject::connect(ui_->action_settings, &QAction::triggered, this, &MainWindow::OpenSettingsDialog);
+  QAction *action_customize_appearance = new QAction(IconLoader::Load(u"view-choose"_s), tr("Customize &appearance..."), this);
+  ui_->menu_tools->insertAction(ui_->action_settings, action_customize_appearance);
+  QObject::connect(action_customize_appearance, &QAction::triggered, this, &MainWindow::ShowCustomizeAppearance);
   QObject::connect(ui_->action_toggle_show_sidebar, &QAction::toggled, this, &MainWindow::ToggleSidebar);
   QObject::connect(ui_->action_about_strawberry, &QAction::triggered, this, &MainWindow::ShowAboutDialog);
   QObject::connect(ui_->action_about_qt, &QAction::triggered, qApp, &QApplication::aboutQt);
@@ -778,6 +792,21 @@ MainWindow::MainWindow(Application *app,
 
   QObject::connect(&*app_->playlist_manager(), &PlaylistManager::CurrentSongChanged, &*app_->current_albumcover_loader(), &CurrentAlbumCoverLoader::LoadAlbumCover);
   QObject::connect(&*app_->current_albumcover_loader(), &CurrentAlbumCoverLoader::AlbumCoverLoaded, this, &MainWindow::AlbumCoverLoaded);
+
+  // Modern playlist look: covers in the playlist rows and a "now playing" card above it.
+  ui_->playlist->view()->SetAlbumCoverLoader(app_->albumcover_loader());
+  now_playing_card_ = new NowPlayingCard(ui_->playlist);
+  if (QBoxLayout *playlist_layout = qobject_cast<QBoxLayout*>(ui_->playlist->layout())) {
+    playlist_layout->insertWidget(playlist_layout->indexOf(ui_->playlist->view()), now_playing_card_);
+  }
+  now_playing_card_->setVisible(CuteTheme::Current().modern_playlist);
+  QObject::connect(&*app_->current_albumcover_loader(), &CurrentAlbumCoverLoader::AlbumCoverLoaded, now_playing_card_, [this](const Song &song, const AlbumCoverLoaderResult &result) {
+    now_playing_card_->SetSong(song, result.album_cover.image.isNull() ? result.image_scaled : result.album_cover.image);
+    now_playing_card_->SetPaused(app_->player()->GetState() == EngineBase::State::Paused);
+  });
+  QObject::connect(&*app_->player(), &Player::Playing, now_playing_card_, [this]() { now_playing_card_->SetPaused(false); });
+  QObject::connect(&*app_->player(), &Player::Paused, now_playing_card_, [this]() { now_playing_card_->SetPaused(true); });
+  QObject::connect(&*app_->player(), &Player::Stopped, now_playing_card_, &NowPlayingCard::Clear);
 
 #ifdef _MSC_VER
   if (smtc_) {
@@ -1113,6 +1142,7 @@ MainWindow::MainWindow(Application *app,
   ui_->splitter->setChildrenCollapsible(false);
 
   ReloadSettings();
+  VideoBackground::Instance()->ReloadSettings();
 
   // Reload pretty OSD to avoid issues with fonts
   osd_->ReloadPrettyOSDSettings();
@@ -1741,12 +1771,73 @@ void MainWindow::TrackSkipped(PlaylistItemPtr item) {
 
 void MainWindow::TabSwitched() {
 
-  if (playing_widget_ && ui_->action_toggle_show_sidebar->isChecked() && (ui_->tabs->currentIndex() != ui_->tabs->IndexOfTab(context_view_) || !context_view_->album_enabled())) {
+  // The album grid shows covers itself and makes the sidebar wide, which would make the now playing cover huge, so hide it there.
+  if (playing_widget_ && ui_->action_toggle_show_sidebar->isChecked() && ui_->tabs->currentIndex() != ui_->tabs->IndexOfTab(albumgrid_view_) && (ui_->tabs->currentIndex() != ui_->tabs->IndexOfTab(context_view_) || !context_view_->album_enabled())) {
     ui_->widget_playing->SetEnabled();
   }
   else {
     ui_->widget_playing->SetDisabled();
   }
+
+  // Restore the normal sidebar width when leaving the album grid (it is widened in WidenSidebarForAlbums).
+  if (ui_->tabs->currentIndex() != ui_->tabs->IndexOfTab(albumgrid_view_) && !splitter_sizes_before_albums_.isEmpty()) {
+    // Remember the width the user gave the album grid.
+    const QList<int> sizes = ui_->splitter->sizes();
+    if (sizes.count() == 2 && sizes[0] + sizes[1] > 0) {
+      const double ratio = static_cast<double>(sizes[0]) / (sizes[0] + sizes[1]);
+      if (ratio > 0.15 && ratio < 0.85) {
+        Settings s;
+        s.beginGroup(MainWindowSettings::kSettingsGroup);
+        s.setValue("albums_sidebar_ratio", ratio);
+        s.endGroup();
+      }
+    }
+    ui_->splitter->setSizes(splitter_sizes_before_albums_);
+    splitter_sizes_before_albums_.clear();
+  }
+
+}
+
+void MainWindow::ShowCustomizeAppearance() {
+
+  if (!customize_appearance_dialog_) {
+    customize_appearance_dialog_ = new CustomizeAppearanceDialog(this);
+    QObject::connect(customize_appearance_dialog_, &CustomizeAppearanceDialog::AppearanceChanged, this, &MainWindow::AppearanceChanged);
+  }
+  customize_appearance_dialog_->show();
+  customize_appearance_dialog_->raise();
+  customize_appearance_dialog_->activateWindow();
+
+}
+
+void MainWindow::AppearanceChanged() {
+
+  // Colors are applied to the whole application by CuteTheme, these views also need to pick up the background settings.
+  VideoBackground::Instance()->ReloadSettings();
+  if (now_playing_card_) now_playing_card_->setVisible(CuteTheme::Current().modern_playlist);
+  ui_->playlist->view()->ReloadSettings();
+  ui_->playlist->view()->viewport()->update();
+  albumgrid_view_->ReloadSettings();
+  ui_->tabs->update();
+
+}
+
+void MainWindow::WidenSidebarForAlbums() {
+
+  // The album grid needs room: widen the sidebar while it is shown.
+  // Called when the grid is actually shown, so the window already has its final size.
+  if (!splitter_sizes_before_albums_.isEmpty() || !isVisible()) return;
+  const QList<int> sizes = ui_->splitter->sizes();
+  if (sizes.count() != 2) return;
+  splitter_sizes_before_albums_ = sizes;
+  const int total = sizes[0] + sizes[1];
+  // About a third of the window by default (three album columns on a full HD screen), or what the user chose last time.
+  Settings s;
+  s.beginGroup(MainWindowSettings::kSettingsGroup);
+  const double ratio = std::clamp(s.value("albums_sidebar_ratio", 0.34).toDouble(), 0.15, 0.85);
+  s.endGroup();
+  const int left = static_cast<int>(total * ratio);
+  ui_->splitter->setSizes(QList<int>() << left << total - left);
 
 }
 
@@ -1781,7 +1872,20 @@ void MainWindow::SaveGeometry() {
   s.setValue(MainWindowSettings::kMinimized, isMinimized());
   s.setValue(MainWindowSettings::kHidden, isHidden());
   s.setValue(MainWindowSettings::kGeometry, saveGeometry());
-  s.setValue(MainWindowSettings::kSplitterState, ui_->splitter->saveState());
+  // Save the normal splitter sizes, not the temporarily widened ones used by the album grid.
+  if (splitter_sizes_before_albums_.isEmpty()) {
+    s.setValue(MainWindowSettings::kSplitterState, ui_->splitter->saveState());
+  }
+  else {
+    const QList<int> current_sizes = ui_->splitter->sizes();
+    if (current_sizes.count() == 2 && current_sizes[0] + current_sizes[1] > 0) {
+      const double ratio = static_cast<double>(current_sizes[0]) / (current_sizes[0] + current_sizes[1]);
+      if (ratio > 0.15 && ratio < 0.85) s.setValue("albums_sidebar_ratio", ratio);
+    }
+    ui_->splitter->setSizes(splitter_sizes_before_albums_);
+    s.setValue(MainWindowSettings::kSplitterState, ui_->splitter->saveState());
+    ui_->splitter->setSizes(current_sizes);
+  }
   s.endGroup();
 
 }

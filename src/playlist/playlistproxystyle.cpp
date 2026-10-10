@@ -27,6 +27,7 @@
 #include <QStyleOptionHeader>
 #include <QFontMetrics>
 
+#include "core/cutetheme.h"
 #include "playlistproxystyle.h"
 #include "playlist.h"
 
@@ -63,6 +64,11 @@ void PlaylistProxyStyle::drawControl(ControlElement element, const QStyleOption 
 }
 
 void PlaylistProxyStyle::drawPrimitive(PrimitiveElement element, const QStyleOption *option, QPainter *painter, const QWidget *widget) const {
+
+  // The modern playlist look highlights the selected rows itself, the focus frame would only draw a box around the row.
+  if (element == QStyle::PE_FrameFocusRect && CuteTheme::Current().modern_playlist) {
+    return;
+  }
 
   if (element == QStyle::PE_PanelItemViewRow || element == QStyle::PE_PanelItemViewItem) {
     common_style_->drawPrimitive(element, option, painter, widget);

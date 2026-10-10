@@ -33,6 +33,7 @@
 #include <QPen>
 
 #include "core/stylehelper.h"
+#include "core/cutetheme.h"
 #include "fancytabbar.h"
 #include "fancytabwidget.h"
 #include "fancytabdata.h"
@@ -172,6 +173,7 @@ void FancyTabBar::paintEvent(QPaintEvent *pe) {
 
   QStylePainter p(this);
 
+  const CuteTheme::Colors &theme = CuteTheme::Current();
   for (int index = 0; index < count(); ++index) {
     const bool selected = tabWidget->currentIndex() == index;
     QRect tabrect = tabRect(index);
@@ -180,16 +182,23 @@ void FancyTabBar::paintEvent(QPaintEvent *pe) {
       // Selection highlight
       p.save();
       QLinearGradient grad(selectionRect.topLeft(), selectionRect.topRight());
-      grad.setColorAt(0, QColor(255, 255, 255, 140));
-      grad.setColorAt(1, QColor(255, 255, 255, 210));
+      QColor sel_start(theme.base);
+      sel_start.setAlpha(170);
+      grad.setColorAt(0, sel_start);
+      QColor sel_end(theme.base);
+      sel_end.setAlpha(240);
+      grad.setColorAt(1, sel_end);
       p.fillRect(selectionRect.adjusted(0, 0, 0, -1), grad);
       p.restore();
 
       // shadow lines
-      p.setPen(QColor(0, 0, 0, 110));
+      QColor sel_line(theme.accent);
+      sel_line.setAlpha(160);
+      p.setPen(sel_line);
       p.drawLine(selectionRect.topLeft()    + QPoint(1, -1), selectionRect.topRight()    - QPoint(0, 1));
       p.drawLine(selectionRect.bottomLeft(), selectionRect.bottomRight());
-      p.setPen(QColor(0, 0, 0, 40));
+      sel_line.setAlpha(60);
+      p.setPen(sel_line);
       p.drawLine(selectionRect.topLeft(),    selectionRect.bottomLeft());
 
       // highlights
@@ -208,7 +217,9 @@ void FancyTabBar::paintEvent(QPaintEvent *pe) {
       p.save();
       QLinearGradient grad(selectionRect.topLeft(),  selectionRect.topRight());
       grad.setColorAt(0, Qt::transparent);
-      grad.setColorAt(0.5, QColor(255, 255, 255, 40));
+      QColor hover(theme.base);
+      hover.setAlpha(140);
+      grad.setColorAt(0.5, hover);
       grad.setColorAt(1, Qt::transparent);
       p.fillRect(selectionRect, grad);
       p.setPen(QPen(grad, 1.0));
@@ -256,13 +267,13 @@ void FancyTabBar::paintEvent(QPaintEvent *pe) {
       p.setFont(boldFont);
 
       // Text drop shadow color
-      p.setPen(selected ? QColor(255, 255, 255, 160) : QColor(0, 0, 0, 110));
+      p.setPen(theme.IsDark() ? QColor(0, 0, 0, 120) : QColor(255, 255, 255, 180));
       p.translate(0, 3);
       p.drawText(tabrectText, textFlags, TabText(index));
 
       // Text foreground color
       p.translate(0, -1);
-      p.setPen(selected ? QColor(60, 60, 60) : StyleHelper::panelTextColor());
+      p.setPen(selected ? theme.AccentStrong() : theme.text);
       p.drawText(tabrectText, textFlags, TabText(index));
 
 

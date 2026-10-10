@@ -75,6 +75,7 @@
 #include "core/logging.h"
 #include "core/standardpaths.h"
 #include "core/settings.h"
+#include "core/cutetheme.h"
 
 #include "utilities/envutils.h"
 #include "utilities/styleutils.h"
@@ -272,9 +273,13 @@ int main(int argc, char *argv[]) {
   // Resources
   Q_INIT_RESOURCE(data);
   Q_INIT_RESOURCE(icons);
+  Q_INIT_RESOURCE(iconsmodern);
 #if defined(HAVE_TRANSLATIONS) && !defined(INSTALL_TRANSLATIONS)
   Q_INIT_RESOURCE(translations);
 #endif
+
+  // Cute pastel theme: colors come from the settings and can be changed in Tools > Customize appearance.
+  CuteTheme::Apply(CuteTheme::Load());
 
   IconLoader::Init();
 

@@ -63,6 +63,8 @@
 #include <QStyleOptionViewItem>
 #include <QtEvents>
 #include <QLinearGradient>
+#include <QPainterPath>
+#include <cmath>
 
 #include "core/logging.h"
 #include "core/song.h"
@@ -70,6 +72,9 @@
 #include "utilities/timeutils.h"
 #include "collection/collectionbackend.h"
 #include "playlist/playlist.h"
+#include "core/cutetheme.h"
+#include "core/iconloader.h"
+#include "playlistview.h"
 #include "playlistdelegates.h"
 
 using namespace Qt::Literals::StringLiterals;
@@ -584,5 +589,140 @@ QString Ebur128LoudnessRangeLUItemDelegate::displayText(const QVariant &value, c
 
   if (ok) return Song::Ebur128LoudnessRangeLUToText(v);
   return QString();
+
+}
+
+QColor ModernMutedTextColor() {
+  return CuteTheme::Current().TextMuted();
+}
+
+ModernTitleDelegate::ModernTitleDelegate(PlaylistView *view)
+    : TextItemDelegate(view),
+      playlist_view_(view),
+      placeholder_icon_(IconLoader::Load(u"library-music"_s).pixmap(24)) {}
+
+QSize ModernTitleDelegate::sizeHint(const QStyleOptionViewItem &option, const QModelIndex &idx) const {
+
+  QSize size = TextItemDelegate::sizeHint(option, idx);
+  size.setHeight(kRowHeight);
+  return size;
+
+}
+
+void ModernTitleDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &idx) const {
+
+  const CuteTheme::Colors &theme = CuteTheme::Current();
+  const bool is_current = idx.data(Playlist::Role_IsCurrent).toBool();
+  const bool is_paused = idx.data(Playlist::Role_IsPaused).toBool();
+  const QRect rect = option.rect;
+
+  painter->save();
+  painter->setRenderHint(QPainter::Antialiasing);
+  painter->setRenderHint(QPainter::SmoothPixmapTransform);
+
+  // Album cover
+  const QRect cover_rect(rect.left() + 8, rect.top() + (rect.height() - kCoverSize) / 2, kCoverSize, kCoverSize);
+  QPainterPath cover_path;
+  cover_path.addRoundedRect(cover_rect, 6, 6);
+  const QPixmap cover = playlist_view_->RowCover(idx);
+  if (cover.isNull()) {
+    QLinearGradient gradient(cover_rect.topLeft(), cover_rect.bottomRight());
+    gradient.setColorAt(0, theme.SidebarTop());
+    gradient.setColorAt(1, theme.SidebarBottom());
+    painter->fillPath(cover_path, gradient);
+    painter->drawPixmap(cover_rect.center().x() - 12 + 1, cover_rect.center().y() - 12 + 1, 24, 24, placeholder_icon_);
+  }
+  else {
+    painter->save();
+    painter->setClipPath(cover_path);
+    painter->drawPixmap(cover_rect, cover);
+    painter->restore();
+  }
+
+  // Playing song: animated equalizer (or pause bars) on the darkened cover
+  if (is_current) {
+    painter->fillPath(cover_path, QColor(0, 0, 0, 120));
+    painter->setPen(Qt::NoPen);
+    painter->setBrush(Qt::white);
+    const int bar_width = 4;
+    const int max_height = 18;
+    const int bottom = cover_rect.center().y() + max_height / 2;
+    if (is_paused) {
+      painter->drawRoundedRect(QRectF(cover_rect.center().x() - 6, bottom - 14, 4, 14), 1.5, 1.5);
+      painter->drawRoundedRect(QRectF(cover_rect.center().x() + 2, bottom - 14, 4, 14), 1.5, 1.5);
+    }
+    else {
+      const int step = playlist_view_->glow_step();
+      for (int i = 0; i < 3; ++i) {
+        const double phase = step * 0.27 + i * 1.9;
+        const double height = max_height * (0.3 + 0.7 * std::abs(std::sin(phase)));
+        const double x = cover_rect.center().x() - 8 + i * (bar_width + 2);
+        painter->drawRoundedRect(QRectF(x, bottom - height, bar_width, height), 1.5, 1.5);
+      }
+    }
+  }
+
+  // Title and artist
+  int text_right = rect.right() - 8 - queue_indicator_size(idx);
+  const bool stop_after = idx.data(Playlist::Role_StopAfter).toBool();
+  const int stop_box_width = QFontMetrics(option.font).horizontalAdvance(tr("stop") + u"  "_s) + 6;
+  if (stop_after) text_right -= stop_box_width;
+  const int text_left = cover_rect.right() + 12;
+  const int text_width = std::max(0, text_right - text_left);
+
+  QFont title_font = option.font;
+  title_font.setBold(true);
+  title_font.setPointSizeF(option.font.pointSizeF() + 0.5);
+  QFont artist_font = option.font;
+  const QFontMetrics title_fm(title_font);
+  const QFontMetrics artist_fm(artist_font);
+
+  const QString title = idx.data(Qt::DisplayRole).toString();
+  QString artist = idx.sibling(idx.row(), static_cast<int>(Playlist::Column::Artist)).data(Qt::DisplayRole).toString();
+  if (artist.isEmpty()) artist = idx.sibling(idx.row(), static_cast<int>(Playlist::Column::AlbumArtist)).data(Qt::DisplayRole).toString();
+
+  const int total_height = title_fm.height() + (artist.isEmpty() ? 0 : artist_fm.height() + 1);
+  int y = rect.top() + (rect.height() - total_height) / 2;
+
+  painter->setFont(title_font);
+  painter->setPen(is_current ? theme.AccentStrong() : theme.text);
+  painter->drawText(QRect(text_left, y, text_width, title_fm.height()), Qt::AlignLeft | Qt::AlignVCenter, title_fm.elidedText(title, Qt::ElideRight, text_width));
+  y += title_fm.height() + 1;
+
+  if (!artist.isEmpty()) {
+    painter->setFont(artist_font);
+    painter->setPen(theme.TextMuted());
+    painter->drawText(QRect(text_left, y, text_width, artist_fm.height()), Qt::AlignLeft | Qt::AlignVCenter, artist_fm.elidedText(artist, Qt::ElideRight, text_width));
+  }
+
+  painter->restore();
+
+  // Queue position and "stop after" boxes, like the classic look
+  bool ok = false;
+  const int queue_pos = idx.data(Playlist::Role_QueuePosition).toInt(&ok);
+  if (ok && queue_pos != -1) {
+    DrawBox(painter, rect.adjusted(0, 14, 0, -14), option.font, QString::number(queue_pos + 1), 20);
+  }
+  if (stop_after) {
+    QRect box_rect(rect.adjusted(0, 14, 0, -14));
+    box_rect.setRight(box_rect.right() - queue_indicator_size(idx));
+    DrawBox(painter, box_rect, option.font, tr("stop"));
+  }
+
+}
+
+void ModernNumberDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &idx) const {
+
+  const CuteTheme::Colors &theme = CuteTheme::Current();
+  const bool is_current = idx.data(Playlist::Role_IsCurrent).toBool();
+  const QString text = displayText(idx.data(Qt::DisplayRole), QLocale());
+
+  painter->save();
+  QFont font = option.font;
+  font.setBold(is_current);
+  painter->setFont(font);
+  painter->setPen(is_current ? theme.AccentStrong() : theme.TextMuted());
+  painter->drawText(option.rect, Qt::AlignCenter, text);
+  painter->restore();
 
 }

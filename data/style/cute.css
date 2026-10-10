@@ -1,0 +1,318 @@
+/* Cute theme (applied application-wide).
+   This is a template: CuteTheme replaces the @tokens with the colors chosen in "Customize appearance". */
+
+* {
+  font-family: "Segoe UI", "Nunito", "Quicksand", sans-serif;
+}
+
+QToolTip {
+  background-color: @base;
+  color: @text;
+  border: 2px solid @accentSoft;
+  border-radius: @radiusSmall;
+  padding: 4px 8px;
+}
+
+/* Buttons */
+QPushButton {
+  background-color: @accentLight;
+  color: @text;
+  border: 2px solid @accentSoft;
+  border-radius: @radiusLarge;
+  padding: 4px 14px;
+  min-height: 18px;
+}
+
+QPushButton:hover {
+  background-color: @base;
+  border-color: @accent;
+}
+
+QPushButton:pressed, QPushButton:checked {
+  background-color: @accent;
+  color: @onAccent;
+}
+
+QPushButton:disabled {
+  background-color: @window;
+  color: @textDisabled;
+  border-color: @accentLight;
+}
+
+QToolButton {
+  border: 2px solid transparent;
+  border-radius: @radius;
+  padding: 2px;
+}
+
+QToolButton:hover {
+  background-color: @accentLight;
+  border-color: @accentSoft;
+}
+
+QToolButton:pressed, QToolButton:checked {
+  background-color: @accentSoft;
+  border-color: @accent;
+}
+
+/* Text inputs */
+QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox, QTextEdit, QPlainTextEdit {
+  background-color: @base;
+  color: @text;
+  border: 2px solid @accentLight;
+  border-radius: @radius;
+  padding: 3px 8px;
+  selection-background-color: @accent;
+  selection-color: @onAccent;
+}
+
+QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus, QComboBox:focus, QTextEdit:focus, QPlainTextEdit:focus {
+  border-color: @accent;
+}
+
+QComboBox::drop-down {
+  border: none;
+  width: 20px;
+}
+
+QComboBox QAbstractItemView {
+  background-color: @base;
+  border: 2px solid @accentSoft;
+  border-radius: @radiusSmall;
+  selection-background-color: @accentLight;
+  selection-color: @text;
+}
+
+/* Menus */
+QMenuBar {
+  background-color: @header;
+  color: @text;
+}
+
+QMenuBar::item {
+  background: transparent;
+  padding: 4px 10px;
+  border-radius: @radiusSmall;
+}
+
+QMenuBar::item:selected {
+  background-color: @accentLight;
+}
+
+QMenu {
+  background-color: @base;
+  color: @text;
+  border: 2px solid @accentSoft;
+  border-radius: @radius;
+  padding: 6px;
+}
+
+QMenu::item {
+  padding: 5px 24px 5px 24px;
+  border-radius: @radiusSmall;
+}
+
+QMenu::item:selected {
+  background-color: @accentLight;
+  color: @text;
+}
+
+QMenu::separator {
+  height: 2px;
+  background: @accentLight;
+  margin: 4px 10px;
+}
+
+/* Lists, trees & tables */
+QAbstractItemView {
+  selection-background-color: @accentSoft;
+  selection-color: @text;
+  outline: 0;
+}
+
+QHeaderView::section {
+  background-color: @header;
+  color: @textMuted;
+  border: none;
+  border-right: 1px solid @accentLight;
+  border-bottom: 2px solid @accentLight;
+  padding: 4px 8px;
+  font-weight: 600;
+}
+
+QHeaderView::section:hover {
+  background-color: @accentLight;
+}
+
+/* Tabs */
+QTabWidget::pane {
+  border: 2px solid @accentLight;
+  border-radius: @radius;
+  top: -2px;
+}
+
+QTabBar::tab {
+  background-color: @header;
+  color: @textMuted;
+  border: 2px solid @accentLight;
+  border-bottom: none;
+  border-top-left-radius: @radius;
+  border-top-right-radius: @radius;
+  padding: 5px 14px;
+  margin-right: 2px;
+}
+
+QTabBar::tab:selected {
+  background-color: @base;
+  color: @accentStrong;
+  font-weight: 600;
+}
+
+QTabBar::tab:hover:!selected {
+  background-color: @accentLight;
+}
+
+/* Sliders (seek bar, equalizer, etc.) */
+QSlider::groove:horizontal {
+  height: 8px;
+  background: @accentLight;
+  border-radius: 4px;
+}
+
+QSlider::sub-page:horizontal {
+  background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 @accent2, stop:1 @accent);
+  border-radius: 4px;
+}
+
+QSlider::handle:horizontal {
+  background: @base;
+  border: 3px solid @accent;
+  width: 12px;
+  height: 12px;
+  margin: -5px 0;
+  border-radius: 9px;
+}
+
+QSlider::handle:horizontal:hover {
+  background: @accentLight;
+  border-color: @accentStrong;
+}
+
+QSlider::groove:vertical {
+  width: 8px;
+  background: @accentLight;
+  border-radius: 4px;
+}
+
+QSlider::add-page:vertical {
+  background: qlineargradient(x1:0, y1:1, x2:0, y2:0, stop:0 @accent2, stop:1 @accent);
+  border-radius: 4px;
+}
+
+QSlider::handle:vertical {
+  background: @base;
+  border: 3px solid @accent;
+  width: 12px;
+  height: 12px;
+  margin: 0 -5px;
+  border-radius: 9px;
+}
+
+/* Scrollbars */
+QScrollBar:vertical {
+  background: transparent;
+  width: 12px;
+  margin: 2px;
+}
+
+QScrollBar:horizontal {
+  background: transparent;
+  height: 12px;
+  margin: 2px;
+}
+
+QScrollBar::handle:vertical, QScrollBar::handle:horizontal {
+  background: @accentSoft;
+  border-radius: 4px;
+  min-height: 24px;
+  min-width: 24px;
+}
+
+QScrollBar::handle:vertical:hover, QScrollBar::handle:horizontal:hover {
+  background: @accent;
+}
+
+QScrollBar::add-line, QScrollBar::sub-line {
+  width: 0;
+  height: 0;
+}
+
+QScrollBar::add-page, QScrollBar::sub-page {
+  background: transparent;
+}
+
+/* Progress bars */
+QProgressBar {
+  background-color: @accentLight;
+  border: none;
+  border-radius: 7px;
+  text-align: center;
+  color: @text;
+  min-height: 14px;
+}
+
+QProgressBar::chunk {
+  background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 @accent2, stop:1 @accent);
+  border-radius: 7px;
+}
+
+/* Check boxes & radio buttons */
+QCheckBox::indicator, QRadioButton::indicator, QAbstractItemView::indicator {
+  width: 14px;
+  height: 14px;
+  border: 2px solid @accentSoft;
+  background: @base;
+}
+
+QCheckBox::indicator, QAbstractItemView::indicator {
+  border-radius: 5px;
+}
+
+QRadioButton::indicator {
+  border-radius: 9px;
+}
+
+QCheckBox::indicator:checked, QRadioButton::indicator:checked, QAbstractItemView::indicator:checked {
+  background: @accent;
+  border-color: @accentStrong;
+}
+
+/* Group boxes */
+QGroupBox {
+  border: 2px solid @accentLight;
+  border-radius: @radiusLarge;
+  margin-top: 12px;
+  padding-top: 6px;
+}
+
+QGroupBox::title {
+  subcontrol-origin: margin;
+  left: 12px;
+  padding: 0 6px;
+  color: @accentStrong;
+  font-weight: 600;
+}
+
+/* Splitters & status bar */
+QSplitter::handle {
+  background-color: @accentLight;
+}
+
+QSplitter::handle:hover {
+  background-color: @accentSoft;
+}
+
+QStatusBar {
+  background-color: @header;
+  color: @textMuted;
+}

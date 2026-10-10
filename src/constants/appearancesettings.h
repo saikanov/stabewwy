@@ -29,7 +29,8 @@ enum class BackgroundImageType {
   None,
   Custom,
   Album,
-  Strawbs
+  Strawbs,
+  Video  // Looping video (e.g. a Wallpaper Engine video wallpaper), see VideoBackground
 };
 
 enum class BackgroundImagePosition {

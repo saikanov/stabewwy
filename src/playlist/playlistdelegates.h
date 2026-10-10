@@ -139,6 +139,57 @@ class TextItemDelegate : public PlaylistDelegateBase {
   QWidget *createEditor(QWidget *parent, const QStyleOptionViewItem &option, const QModelIndex &idx) const override;
 };
 
+class PlaylistView;
+
+// Modern playlist look: the title column shows the album cover, the title and the artist on a second line,
+// and an animated equalizer on the cover of the playing song.
+class ModernTitleDelegate : public TextItemDelegate {
+  Q_OBJECT
+
+ public:
+  explicit ModernTitleDelegate(PlaylistView *view);
+
+  void paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &idx) const override;
+  QSize sizeHint(const QStyleOptionViewItem &option, const QModelIndex &idx) const override;
+
+  static constexpr int kRowHeight = 56;
+  static constexpr int kCoverSize = 40;
+
+ private:
+  PlaylistView *playlist_view_;
+  QPixmap placeholder_icon_;
+};
+
+// Modern playlist look: centered, muted track number, highlighted for the playing song.
+class ModernNumberDelegate : public PlaylistDelegateBase {
+  Q_OBJECT
+
+ public:
+  explicit ModernNumberDelegate(QObject *parent) : PlaylistDelegateBase(parent) {}
+  void paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &idx) const override;
+};
+
+// Modern playlist look: draws the cells of Base in the muted text color.
+template<typename Base>
+class MutedItemDelegate : public Base {
+ public:
+  using Base::Base;
+
+ protected:
+  void initStyleOption(QStyleOptionViewItem *option, const QModelIndex &idx) const override {
+    Base::initStyleOption(option, idx);
+    const QColor muted = MutedTextColor();
+    option->palette.setColor(QPalette::Text, muted);
+    option->palette.setColor(QPalette::HighlightedText, muted);
+  }
+  static QColor MutedTextColor();
+};
+
+QColor ModernMutedTextColor();
+
+template<typename Base>
+QColor MutedItemDelegate<Base>::MutedTextColor() { return ModernMutedTextColor(); }
+
 class TagCompletionModel : public QStringListModel {
   Q_OBJECT
 

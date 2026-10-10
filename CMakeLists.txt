@@ -191,6 +191,7 @@ pkg_check_modules(GSTREAMER REQUIRED IMPORTED_TARGET gstreamer-1.0)
 pkg_check_modules(GSTREAMER_BASE REQUIRED IMPORTED_TARGET gstreamer-base-1.0)
 pkg_check_modules(GSTREAMER_AUDIO REQUIRED IMPORTED_TARGET gstreamer-audio-1.0)
 pkg_check_modules(GSTREAMER_APP REQUIRED IMPORTED_TARGET gstreamer-app-1.0)
+pkg_check_modules(GSTREAMER_VIDEO REQUIRED IMPORTED_TARGET gstreamer-video-1.0)
 pkg_check_modules(GSTREAMER_TAG REQUIRED IMPORTED_TARGET gstreamer-tag-1.0)
 pkg_check_modules(GSTREAMER_PBUTILS REQUIRED IMPORTED_TARGET gstreamer-pbutils-1.0)
 pkg_check_modules(SQLITE REQUIRED IMPORTED_TARGET sqlite3>=3.9)
@@ -473,6 +474,9 @@ set(SOURCES
   src/core/songloader.cpp
   src/core/stylehelper.cpp
   src/core/stylesheetloader.cpp
+  src/core/cutetheme.cpp
+  src/core/videobackground.cpp
+  src/core/wallpaperengine.cpp
   src/core/taskmanager.cpp
   src/core/thread.cpp
   src/core/urlhandler.cpp
@@ -615,6 +619,7 @@ set(SOURCES
   src/collection/collectionitem.cpp
   src/collection/collectionitemdelegate.cpp
   src/collection/collectionviewcontainer.cpp
+  src/collection/albumgridview.cpp
   src/collection/collectiondirectorymodel.cpp
   src/collection/collectionfilteroptions.cpp
   src/collection/collectionfilterwidget.cpp
@@ -647,6 +652,7 @@ set(SOURCES
   src/playlist/playlistsequence.cpp
   src/playlist/playlisttabbar.cpp
   src/playlist/playlistview.cpp
+  src/playlist/nowplayingcard.cpp
   src/playlist/playlistproxystyle.cpp
   src/playlist/songloaderinserter.cpp
   src/playlist/dynamicplaylistcontrols.cpp
@@ -753,6 +759,8 @@ set(SOURCES
   src/settings/transcodersettingspage.cpp
 
   src/dialogs/aboutdialog.cpp
+  src/dialogs/customizeappearancedialog.cpp
+  src/dialogs/wallpaperenginedialog.cpp
   src/dialogs/console.cpp
   src/dialogs/errordialog.cpp
   src/dialogs/edittagdialog.cpp
@@ -895,6 +903,9 @@ set(HEADERS
   src/core/standarditemiconloader.h
   src/core/mimedata.h
   src/core/stylesheetloader.h
+  src/core/cutetheme.h
+  src/core/videobackground.h
+  src/core/wallpaperengine.h
   src/core/localredirectserver.h
   src/core/songmimedata.h
   src/core/httpbaserequest.h
@@ -941,6 +952,7 @@ set(HEADERS
   src/collection/collectiontreeview.h
   src/collection/collectionitemdelegate.h
   src/collection/collectionviewcontainer.h
+  src/collection/albumgridview.h
   src/collection/collectiondirectorymodel.h
   src/collection/collectionfilterwidget.h
   src/collection/collectionfilter.h
@@ -963,6 +975,7 @@ set(HEADERS
   src/playlist/playlistsequence.h
   src/playlist/playlisttabbar.h
   src/playlist/playlistview.h
+  src/playlist/nowplayingcard.h
   src/playlist/playlistproxystyle.h
   src/playlist/playlistitemmimedata.h
   src/playlist/songloaderinserter.h
@@ -1057,6 +1070,8 @@ set(HEADERS
   src/settings/transcodersettingspage.h
 
   src/dialogs/aboutdialog.h
+  src/dialogs/customizeappearancedialog.h
+  src/dialogs/wallpaperenginedialog.h
   src/dialogs/errordialog.h
   src/dialogs/console.h
   src/dialogs/edittagdialog.h
@@ -1684,7 +1699,7 @@ endif()
 
 qt_wrap_cpp(SOURCES ${HEADERS})
 qt_wrap_ui(SOURCES ${UI})
-qt_add_resources(SOURCES data/data.qrc data/icons.qrc)
+qt_add_resources(SOURCES data/data.qrc data/icons.qrc data/iconsmodern.qrc)
 
 add_library(strawberry_lib STATIC ${SOURCES})
 
@@ -1737,6 +1752,7 @@ target_link_libraries(strawberry_lib PUBLIC
   PkgConfig::GSTREAMER_BASE
   PkgConfig::GSTREAMER_AUDIO
   PkgConfig::GSTREAMER_APP
+  PkgConfig::GSTREAMER_VIDEO
   PkgConfig::GSTREAMER_TAG
   PkgConfig::GSTREAMER_PBUTILS
   ${TAGLIB_LIBRARIES}

@@ -55,6 +55,7 @@
 #include <QRegion>
 #include <QStyleOptionViewItem>
 #include <QLinearGradient>
+#include <QPainterPath>
 #include <QScrollBar>
 #include <QtEvents>
 #include <QDrag>
@@ -63,6 +64,8 @@
 #include "includes/qt_blurimage.h"
 #include "core/song.h"
 #include "core/settings.h"
+#include "core/cutetheme.h"
+#include "core/videobackground.h"
 #include "core/player.h"
 #include "playlistmanager.h"
 #include "playlist.h"
@@ -73,6 +76,9 @@
 #include "playlistproxystyle.h"
 #include "covermanager/currentalbumcoverloader.h"
 #include "covermanager/albumcoverloaderresult.h"
+#include "covermanager/albumcoverloader.h"
+#include "covermanager/albumcoverloaderoptions.h"
+#include "playlistitem.h"
 #include "constants/appearancesettings.h"
 #include "constants/playlistsettings.h"
 #include "dynamicplaylistcontrols.h"
@@ -138,6 +144,9 @@ PlaylistView::PlaylistView(QWidget *parent)
       dynamic_controls_(new DynamicPlaylistControls(this)),
       rating_delegate_(nullptr) {
 
+  modern_ = CuteTheme::Current().modern_playlist;
+  hover_row_ = -1;
+
   setHeader(header_);
   header_->setSectionsMovable(true);
   header_->setFirstSectionMovable(true);
@@ -180,6 +189,9 @@ PlaylistView::PlaylistView(QWidget *parent)
 
   // For fading
   QObject::connect(fade_animation_, &QTimeLine::valueChanged, this, &PlaylistView::FadePreviousBackgroundImage);
+  QObject::connect(VideoBackground::Instance(), &VideoBackground::FrameChanged, this, [this]() {
+    if (background_image_type_ == AppearanceSettings::BackgroundImageType::Video) viewport()->update();
+  });
   fade_animation_->setDirection(QTimeLine::Direction::Backward);  // 1.0 -> 0.0
 
 }
@@ -257,6 +269,15 @@ void PlaylistView::SetItemDelegates() {
 
   setItemDelegateForColumn(static_cast<int>(Playlist::Column::EBUR128IntegratedLoudness), new Ebur128LoudnessLUFSItemDelegate(this));
   setItemDelegateForColumn(static_cast<int>(Playlist::Column::EBUR128LoudnessRange), new Ebur128LoudnessRangeLUItemDelegate(this));
+
+  if (modern_) {
+    setItemDelegateForColumn(static_cast<int>(Playlist::Column::Title), new ModernTitleDelegate(this));
+    setItemDelegateForColumn(static_cast<int>(Playlist::Column::Track), new ModernNumberDelegate(this));
+    setItemDelegateForColumn(static_cast<int>(Playlist::Column::Album), new MutedItemDelegate<TagCompletionItemDelegate>(this, collection_backend_, Playlist::Column::Album));
+    setItemDelegateForColumn(static_cast<int>(Playlist::Column::Artist), new MutedItemDelegate<TagCompletionItemDelegate>(this, collection_backend_, Playlist::Column::Artist));
+    setItemDelegateForColumn(static_cast<int>(Playlist::Column::Year), new MutedItemDelegate<PlaylistDelegateBase>(this));
+    setItemDelegateForColumn(static_cast<int>(Playlist::Column::Length), new MutedItemDelegate<LengthItemDelegate>(this));
+  }
 
 }
 
@@ -343,6 +364,37 @@ void PlaylistView::LoadHeaderState() {
   }
 
   header_state_loaded_ = true;
+
+}
+
+void PlaylistView::ApplyModernColumns() {
+
+  if (!modern_ || !header_state_loaded_) return;
+
+  // Only once, so the columns can still be changed afterwards from the header's context menu.
+  Settings s;
+  s.beginGroup(PlaylistSettings::kSettingsGroup);
+  const bool applied = s.value("modern_columns_applied", false).toBool();
+  if (!applied) s.setValue("modern_columns_applied", true);
+  s.endGroup();
+  if (applied) return;
+
+  const QList<Playlist::Column> columns = { Playlist::Column::Track, Playlist::Column::Title, Playlist::Column::Album, Playlist::Column::Length };
+  header_->SetStretchEnabled(true);
+  for (const Playlist::Column column : columns) {
+    header_->ShowSection(static_cast<int>(column));
+  }
+  for (int i = 0; i < header_->count(); ++i) {
+    if (!columns.contains(static_cast<Playlist::Column>(i))) header_->HideSection(i);
+  }
+  for (int i = 0; i < columns.count(); ++i) {
+    header_->moveSection(header_->visualIndex(static_cast<int>(columns[i])), i);
+  }
+  header_->SetColumnWidth(static_cast<int>(Playlist::Column::Track), 0.06);
+  header_->SetColumnWidth(static_cast<int>(Playlist::Column::Title), 0.52);
+  header_->SetColumnWidth(static_cast<int>(Playlist::Column::Album), 0.32);
+  header_->SetColumnWidth(static_cast<int>(Playlist::Column::Length), 0.10);
+  header_state_ = header_->SaveState();
 
 }
 
@@ -456,6 +508,8 @@ void PlaylistView::RestoreHeaderState() {
     header_->ShowSection(static_cast<int>(Playlist::Column::Title));
   }
 
+  ApplyModernColumns();
+
   header_state_restored_ = true;
 
   Q_EMIT ColumnAlignmentChanged(column_alignment_);
@@ -538,7 +592,140 @@ void PlaylistView::drawTree(QPainter *painter, const QRegion &region) const {
 
 }
 
+void PlaylistView::SetAlbumCoverLoader(const SharedPtr<AlbumCoverLoader> albumcover_loader) {
+
+  albumcover_loader_ = albumcover_loader;
+  QObject::connect(&*albumcover_loader_, &AlbumCoverLoader::AlbumCoverLoaded, this, &PlaylistView::RowCoverLoaded);
+
+}
+
+QPixmap PlaylistView::RowCover(const QModelIndex &idx) const {
+
+  if (!playlist_ || !albumcover_loader_) return QPixmap();
+  const QModelIndex source_idx = playlist_->filter()->mapToSource(idx);
+  if (!source_idx.isValid() || !playlist_->has_item_at(source_idx.row())) return QPixmap();
+  const Song song = playlist_->item_at(source_idx.row())->EffectiveMetadata();
+
+  // One cover per album, songs without an album get their own.
+  const QString key = song.effective_album().isEmpty() ? song.url().toString() : song.effective_albumartist() + u'\n' + song.effective_album();
+  const auto it = row_covers_.constFind(key);
+  if (it != row_covers_.constEnd()) return it.value();
+
+  if (!row_cover_requested_.contains(key)) {
+    row_cover_requested_.insert(key);
+    AlbumCoverLoaderOptions options(AlbumCoverLoaderOptions::Option::ScaledImage | AlbumCoverLoaderOptions::Option::PadScaledImage);
+    options.types = AlbumCoverLoaderOptions::LoadTypes();
+    options.desired_scaled_size = QSize(ModernTitleDelegate::kCoverSize, ModernTitleDelegate::kCoverSize);
+    options.device_pixel_ratio = device_pixel_ratio_;
+    const quint64 id = albumcover_loader_->LoadImageAsync(options, song);
+    row_cover_tasks_.insert(id, key);
+  }
+
+  return QPixmap();
+
+}
+
+void PlaylistView::RowCoverLoaded(const quint64 id, const AlbumCoverLoaderResult &result) {
+
+  if (!row_cover_tasks_.contains(id)) return;
+  const QString key = row_cover_tasks_.take(id);
+
+  // A null pixmap is cached too: the album has no cover, the placeholder is shown.
+  QPixmap pixmap;
+  if (result.success && !result.image_scaled.isNull() && result.type != AlbumCoverLoaderResult::Type::Unset) {
+    pixmap = QPixmap::fromImage(result.image_scaled);
+  }
+  row_covers_.insert(key, pixmap);
+  viewport()->update();
+
+}
+
+QRect PlaylistView::RowRect(const int row) const {
+
+  if (!model() || row < 0 || row >= model()->rowCount()) return QRect();
+  QRect rect = visualRect(model()->index(row, static_cast<int>(Playlist::Column::Title)));
+  rect.setLeft(0);
+  rect.setRight(viewport()->width());
+  return rect;
+
+}
+
+void PlaylistView::SetHoverRow(const int row) {
+
+  if (row == hover_row_) return;
+  // Hovering highlights the whole row, but the view only repaints the hovered cell by itself.
+  const QRect old_rect = RowRect(hover_row_);
+  hover_row_ = row;
+  if (!old_rect.isEmpty()) viewport()->update(old_rect);
+  const QRect new_rect = RowRect(row);
+  if (!new_rect.isEmpty()) viewport()->update(new_rect);
+
+}
+
+void PlaylistView::DrawModernRow(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &idx) const {
+
+  const CuteTheme::Colors &theme = CuteTheme::Current();
+  const bool is_current = idx.data(Playlist::Role_IsCurrent).toBool();
+  const bool is_selected = selectionModel()->isSelected(idx);
+  const bool is_hovered = idx.row() == hover_row_;
+
+  if (is_current) {
+    // Repainted by the glow timer for the equalizer animation.
+    const_cast<PlaylistView*>(this)->last_current_item_ = idx;
+    const_cast<PlaylistView*>(this)->last_glow_rect_ = option.rect;
+  }
+
+  // Rounded row background: playing song, selection and hover.
+  if (is_current || is_selected || is_hovered) {
+    painter->save();
+    painter->setRenderHint(QPainter::Antialiasing);
+    const QRectF rect = QRectF(option.rect).adjusted(6, 2, -6, -2);
+    const qreal radius = std::min<qreal>(theme.radius + 2, rect.height() / 2);
+    QPainterPath path;
+    path.addRoundedRect(rect, radius, radius);
+    if (is_current) {
+      QColor start(theme.accent);
+      start.setAlpha(90);
+      QColor end(theme.accent2);
+      end.setAlpha(30);
+      QLinearGradient gradient(rect.topLeft(), rect.topRight());
+      gradient.setColorAt(0, start);
+      gradient.setColorAt(1, end);
+      painter->fillPath(path, gradient);
+    }
+    if (is_selected) {
+      QColor selected(theme.accent);
+      selected.setAlpha(is_current ? 70 : 110);
+      painter->fillPath(path, selected);
+      QColor border(theme.accent);
+      border.setAlpha(170);
+      painter->setPen(QPen(border, 1.2));
+      painter->drawPath(path);
+    }
+    else if (is_hovered && !is_current) {
+      QColor hover(theme.accent);
+      hover.setAlpha(45);
+      painter->fillPath(path, hover);
+    }
+    painter->restore();
+  }
+
+  // The cells draw on top without any background of their own.
+  QStyleOptionViewItem opt(option);
+  opt.palette.setColor(QPalette::Highlight, Qt::transparent);
+  opt.palette.setColor(QPalette::AlternateBase, Qt::transparent);
+  opt.palette.setColor(QPalette::HighlightedText, opt.palette.color(QPalette::Text));
+  opt.state &= ~QStyle::State_MouseOver;
+  QTreeView::drawRow(painter, opt, idx);
+
+}
+
 void PlaylistView::drawRow(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &idx) const {
+
+  if (modern_) {
+    DrawModernRow(painter, option, idx);
+    return;
+  }
 
   QStyleOptionViewItem opt(option);
 
@@ -681,7 +868,7 @@ void PlaylistView::StopGlowing() {
 void PlaylistView::StartGlowing() {
 
   currently_glowing_ = true;
-  if (isVisible() && glow_enabled_) {
+  if (isVisible() && (glow_enabled_ || modern_)) {
     glow_timer_.start(1500 / kGlowIntensitySteps, this);
   }
 
@@ -694,7 +881,7 @@ void PlaylistView::hideEvent(QHideEvent *e) {
 
 void PlaylistView::showEvent(QShowEvent *e) {
 
-  if (currently_glowing_ && glow_enabled_) {
+  if (currently_glowing_ && (glow_enabled_ || modern_)) {
     glow_timer_.start(1500 / kGlowIntensitySteps, this);
   }
 
@@ -893,6 +1080,8 @@ void PlaylistView::mouseMoveEvent(QMouseEvent *event) {
     }
   }
 
+  if (modern_) SetHoverRow(indexAt(event->pos()).row());
+
   if (!drag_over_) {
     QTreeView::mouseMoveEvent(event);
   }
@@ -904,6 +1093,8 @@ void PlaylistView::leaveEvent(QEvent *e) {
   if (rating_delegate_->is_mouse_over() && !rating_locked_) {
     RatingHoverOut();
   }
+
+  SetHoverRow(-1);
 
   QTreeView::leaveEvent(e);
 
@@ -969,6 +1160,11 @@ void PlaylistView::scrollContentsBy(const int dx, const int dy) {
   cached_tree_ = QPixmap();
 
   QTreeView::scrollContentsBy(dx, dy);
+
+  // The mascot and video backgrounds stay fixed, so the scrolled (blitted) contents must be repainted.
+  if (background_image_type_ == AppearanceSettings::BackgroundImageType::Default || background_image_type_ == AppearanceSettings::BackgroundImageType::Video) {
+    viewport()->update();
+  }
 
   if (!currently_autoscrolling_) {
     // We only want to do this if the scroll was initiated by the user
@@ -1122,6 +1318,24 @@ void PlaylistView::paintEvent(QPaintEvent *event) {
       }
     }
   }
+  else if (background_image_type_ == AppearanceSettings::BackgroundImageType::Default) {
+    // Kawaii mascot in the bottom right corner.
+    if (default_background_pixmap_.isNull()) {
+      default_background_pixmap_ = QPixmap(u":/pictures/mascot.png"_s);
+    }
+    QPainter background_painter(viewport());
+    // Opacity is set in "Customize appearance", and the mascot is faded further when there are songs on top of it, so the text stays readable.
+    qreal opacity = CuteTheme::Current().mascot_opacity / 100.0;
+    if (model() && model()->rowCount() > 0) opacity *= 0.35;
+    background_painter.setOpacity(opacity);
+    background_painter.drawPixmap(viewport()->width() - default_background_pixmap_.width(), viewport()->height() - default_background_pixmap_.height(), default_background_pixmap_);
+  }
+  else if (background_image_type_ == AppearanceSettings::BackgroundImageType::Video) {
+    // Looping video (e.g. a Wallpaper Engine wallpaper) filling the view.
+    QPainter background_painter(viewport());
+    background_painter.setOpacity(opacity_level_ / 100.0);
+    VideoBackground::Instance()->Paint(&background_painter, viewport()->rect());
+  }
 
   QPainter p(viewport());
 
@@ -1250,6 +1464,17 @@ void PlaylistView::ReloadSettings() {
   select_track_ = s.value(PlaylistSettings::kSelectTrack, PlaylistSettings::kDefaultSelectTrack).toBool();
   auto_sort_ = s.value(PlaylistSettings::kAutoSort, PlaylistSettings::kDefaultAutoSort).toBool();
   setAlternatingRowColors(s.value(PlaylistSettings::kAlternatingRowColors, PlaylistSettings::kDefaultAlternatingRowColors).toBool());
+
+  // Modern look: rows are painted as rounded "cards", alternating colors would only get in the way.
+  const bool modern = CuteTheme::Current().modern_playlist;
+  if (modern != modern_) {
+    modern_ = modern;
+    SetItemDelegates();
+    ApplyModernColumns();
+    doItemsLayout();
+  }
+  if (modern_) setAlternatingRowColors(false);
+  header_->setDefaultAlignment(modern_ ? Qt::AlignLeft | Qt::AlignVCenter : Qt::AlignCenter);
   s.endGroup();
 
   s.beginGroup(AppearanceSettings::kSettingsGroup);
@@ -1320,7 +1545,7 @@ void PlaylistView::ReloadSettings() {
     opacity_level_ = opacity_level;
 
     if (background_image_type_ == AppearanceSettings::BackgroundImageType::Custom) {
-      set_background_image(QImage(background_image_filename));
+      set_background_image(CuteTheme::LoadImageFile(background_image_filename));
     }
     else if (background_image_type_ == AppearanceSettings::BackgroundImageType::Album) {
       set_background_image(current_song_cover_art_);

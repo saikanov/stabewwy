@@ -62,6 +62,7 @@
 #include "core/logging.h"
 #include "core/mimedata.h"
 #include "core/song.h"
+#include "core/cutetheme.h"
 #include "core/settings.h"
 #include "core/songmimedata.h"
 #include "constants/timeconstants.h"
@@ -211,6 +212,9 @@ QVariant Playlist::headerData(const int section, Qt::Orientation orientation, co
   Q_UNUSED(orientation)
 
   if (role != Qt::DisplayRole && role != Qt::ToolTipRole) return QVariant();
+
+  // The modern playlist look has a narrow track number column, like other music players.
+  if (role == Qt::DisplayRole && section == static_cast<int>(Column::Track) && CuteTheme::Current().modern_playlist) return u"#"_s;
 
   const QString name = column_name(static_cast<Playlist::Column>(section));
   if (!name.isEmpty()) return name;

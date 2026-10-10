@@ -41,6 +41,7 @@
 #include <QContextMenuEvent>
 #include <QPaintEvent>
 
+#include "core/cutetheme.h"
 #include "fancytabwidget.h"
 #include "fancytabbar.h"
 #include "fancytabdata.h"
@@ -316,7 +317,8 @@ void FancyTabWidget::paintEvent(QPaintEvent *pe) {
   QRect backgroundRect = rect();
   backgroundRect.setWidth(tabBar()->width());
 
-  QString key = QString::asprintf("mh_vertical %d %d %d %d %d", backgroundRect.width(), backgroundRect.height(), bg_color_.rgb(), (bg_gradient_ ? 1 : 0), (background_pixmap_.isNull() ? 0 : 1));
+  const CuteTheme::Colors &theme = CuteTheme::Current();
+  QString key = QString::asprintf("mh_vertical %d %d %d %d %d %u %u", backgroundRect.width(), backgroundRect.height(), bg_color_.rgb(), (bg_gradient_ ? 1 : 0), (background_pixmap_.isNull() ? 0 : 1), theme.SidebarTop().rgb(), theme.SidebarBottom().rgb());
 
   QPixmap pixmap;
   if (!QPixmapCache::find(key, &pixmap)) {
@@ -330,16 +332,17 @@ void FancyTabWidget::paintEvent(QPaintEvent *pe) {
 
       QRect rect(0, 0, backgroundRect.width(), backgroundRect.height());
 
-      QColor shadow = StyleHelper::shadowColor(false);
-      QLinearGradient grad(backgroundRect.topRight(), backgroundRect.topLeft());
-      grad.setColorAt(0, bg_color_.lighter(117));
-      grad.setColorAt(1, shadow.darker(109));
+      // Pastel gradient from the cute theme colors.
+      QLinearGradient grad(backgroundRect.topLeft(), backgroundRect.bottomLeft());
+      grad.setColorAt(0, theme.SidebarTop());
+      grad.setColorAt(1, theme.SidebarBottom());
       p.fillRect(rect, grad);
 
       QColor light(255, 255, 255, 80);
       p.setPen(light);
       p.drawLine(rect.topRight() - QPoint(1, 0), rect.bottomRight() - QPoint(1, 0));
-      QColor dark(0, 0, 0, 90);
+      QColor dark(theme.AccentSoft());
+    dark.setAlpha(120);
       p.setPen(dark);
       p.drawLine(rect.topLeft(), rect.bottomLeft());
 
@@ -362,11 +365,12 @@ void FancyTabWidget::paintEvent(QPaintEvent *pe) {
     QColor light(255, 255, 255, 80);
     p.setPen(light);
     p.drawLine(backgroundRect.topRight() - QPoint(1, 0), backgroundRect.bottomRight() - QPoint(1, 0));
-    QColor dark(0, 0, 0, 90);
+    QColor dark(theme.AccentSoft());
+    dark.setAlpha(120);
     p.setPen(dark);
     p.drawLine(backgroundRect.topLeft(), backgroundRect.bottomLeft());
 
-    p.setPen(StyleHelper::borderColor());
+    p.setPen(theme.AccentLight());
     p.drawLine(backgroundRect.topRight(), backgroundRect.bottomRight());
 
     p.end();

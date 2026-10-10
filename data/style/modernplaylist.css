@@ -1,0 +1,31 @@
+/* Modern playlist look (added to cute.css when "Modern playlist" is enabled).
+   The rows, selection and current track are painted by PlaylistView itself, so the cells don't paint any background. */
+
+#playlist {
+  selection-background-color: transparent;
+  selection-color: @text;
+  outline: 0;
+  border: none;
+}
+
+#playlist::item:hover, #playlist::item:selected {
+  background: transparent;
+}
+
+#playlist QHeaderView::section {
+  background-color: transparent;
+  color: @textMuted;
+  border: none;
+  border-bottom: 1px solid @accentLight;
+  padding: 6px 8px;
+  font-weight: 600;
+}
+
+#playlist QHeaderView::section:hover {
+  color: @text;
+  background-color: transparent;
+}
+
+#playlist QHeaderView {
+  background-color: transparent;
+}

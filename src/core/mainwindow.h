@@ -68,11 +68,14 @@ class AlbumCoverManager;
 class Application;
 class ContextView;
 class CollectionViewContainer;
+class AlbumGridView;
 class CollectionFilter;
 class AlbumCoverChoiceController;
 class CommandlineOptions;
 class DeviceViewContainer;
 class EditTagDialog;
+class CustomizeAppearanceDialog;
+class NowPlayingCard;
 class Equalizer;
 class ErrorDialog;
 class FileView;
@@ -243,9 +246,12 @@ class MainWindow : public QMainWindow, public PlatformInterface {
   SettingsDialog *CreateSettingsDialog();
   EditTagDialog *CreateEditTagDialog();
   void OpenSettingsDialog();
+  void ShowCustomizeAppearance();
+  void AppearanceChanged();
   void OpenSettingsDialogAtPage(const SettingsDialog::Page page);
 
   void TabSwitched();
+  void WidenSidebarForAlbums();
   void ToggleSidebar(const bool checked);
   void ToggleSearchCoverAuto(const bool checked);
   void SaveGeometry();
@@ -334,6 +340,10 @@ class MainWindow : public QMainWindow, public PlatformInterface {
 
   ContextView *context_view_;
   CollectionViewContainer *collection_view_;
+  AlbumGridView *albumgrid_view_;
+  CustomizeAppearanceDialog *customize_appearance_dialog_ = nullptr;
+  NowPlayingCard *now_playing_card_ = nullptr;
+  QList<int> splitter_sizes_before_albums_;
   FileView *file_view_;
   DeviceViewContainer *device_view_;
   PlaylistListContainer *playlist_list_;

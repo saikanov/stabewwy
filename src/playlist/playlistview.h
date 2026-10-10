@@ -42,6 +42,8 @@
 #include <QStyleOption>
 #include <QPoint>
 #include <QBasicTimer>
+#include <QHash>
+#include <QSet>
 
 #include "core/song.h"
 #include "covermanager/albumcoverloaderresult.h"
@@ -70,6 +72,7 @@ class Player;
 class CollectionBackend;
 class PlaylistManager;
 class CurrentAlbumCoverLoader;
+class AlbumCoverLoader;
 class PlaylistHeader;
 class PlaylistProxyStyle;
 class DynamicPlaylistControls;
@@ -107,6 +110,14 @@ class PlaylistView : public QTreeView {
   Qt::Alignment column_alignment(int section) const;
 
   void ResetHeaderState();
+
+  // Modern playlist look (covers, two line titles, rounded rows), see CuteTheme::Colors::modern_playlist.
+  void SetAlbumCoverLoader(const SharedPtr<AlbumCoverLoader> albumcover_loader);
+  bool modern() const { return modern_; }
+  // Album cover for a row, loaded asynchronously: returns a null pixmap until it's loaded (or if there is none).
+  QPixmap RowCover(const QModelIndex &idx) const;
+  // Animation step of the playing song, used for the equalizer animation.
+  int glow_step() const { return glow_intensity_step_; }
 
   // QTreeView
   void setModel(QAbstractItemModel *model) override;
@@ -181,10 +192,16 @@ class PlaylistView : public QTreeView {
   void RatingHoverIn(const QModelIndex &idx, const QPoint pos);
   void RatingHoverOut();
   void SortStateChanged(const bool is_sorted, const Playlist::Column column, const Qt::SortOrder sort_order);
+  void RowCoverLoaded(const quint64 id, const AlbumCoverLoaderResult &result);
 
  private:
   void LoadHeaderState();
   void RestoreHeaderState();
+  // Shows only the track number, title, album and length columns, once, when the modern look is first used.
+  void ApplyModernColumns();
+  void SetHoverRow(const int row);
+  QRect RowRect(const int row) const;
+  void DrawModernRow(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &idx) const;
 
   void ReloadBarPixmaps();
   QList<QPixmap> LoadBarPixmap(const QString &filename, const bool keep_aspect_ratio);
@@ -240,6 +257,15 @@ class PlaylistView : public QTreeView {
   QImage background_image_;
   QImage current_song_cover_art_;
   QPixmap cached_scaled_background_image_;
+  QPixmap default_background_pixmap_;
+
+  // Modern look
+  bool modern_;
+  int hover_row_;
+  SharedPtr<AlbumCoverLoader> albumcover_loader_;
+  mutable QHash<QString, QPixmap> row_covers_;
+  mutable QHash<quint64, QString> row_cover_tasks_;
+  mutable QSet<QString> row_cover_requested_;
 
   // For fading when image change
   QPixmap previous_background_image_;

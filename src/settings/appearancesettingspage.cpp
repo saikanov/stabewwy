@@ -200,7 +200,7 @@ void AppearanceSettingsPage::Load() {
   // Playlist background image
   {
     const int v = s.value(kBackgroundImageType, static_cast<int>(kDefaultBackgroundImageType)).toInt();
-    background_image_type_ = (v >= static_cast<int>(BackgroundImageType::Default) && v <= static_cast<int>(BackgroundImageType::Strawbs)) ? static_cast<BackgroundImageType>(v) : kDefaultBackgroundImageType;
+    background_image_type_ = (v >= static_cast<int>(BackgroundImageType::Default) && v <= static_cast<int>(BackgroundImageType::Video)) ? static_cast<BackgroundImageType>(v) : kDefaultBackgroundImageType;
   }
   background_image_filename_ = s.value(kBackgroundImageFilename).toString();
 
@@ -223,6 +223,9 @@ void AppearanceSettingsPage::Load() {
       break;
     case BackgroundImageType::Strawbs:
       ui_->use_strawbs_background->setChecked(true);
+      break;
+    case BackgroundImageType::Video:
+      // Set in "Customize appearance", there is no radio button for it here.
       break;
   }
   ui_->background_image_filename->setText(background_image_filename_);
