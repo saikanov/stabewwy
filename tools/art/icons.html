@@ -1,0 +1,282 @@
+<!doctype html>
+<html><head><meta charset="utf-8"></head>
+<body>
+<pre id="out"></pre>
+<script>
+// Kawaii pastel icon set for Strawberry. Every icon is drawn on a 24x24 grid.
+const ST = '#6B4470';            // plum outline
+const P = '#FFB6CF', L = '#DCC8FF', M = '#BDEFD0', Y = '#FFE7A3', B = '#C4E4FF', W = '#FFFFFF', R = '#FF8FB8';
+
+const svg = (inner, defs = '') =>
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="${ST}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><defs>${defs}</defs>${inner}</svg>`;
+
+// Pink circular badge with a white glyph (transport buttons)
+const badgeDefs = `<linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFB0CC"/><stop offset="1" stop-color="#FF7FAE"/></linearGradient>`;
+const badge = (glyph) => svg(
+  `<circle cx="12" cy="12" r="10.4" fill="url(#bg)" stroke="#E25D93" stroke-width="1.2"/>` +
+  `<path d="M6.5 8.2a6.5 6.5 0 0 1 4-3.3" stroke="#FFFFFF" stroke-opacity="0.7" stroke-width="1.4"/>` +
+  `<g fill="#FFFFFF" stroke="#FFFFFF" stroke-width="1.4">${glyph}</g>`, badgeDefs);
+
+// Small round badge in the corner (plus / x etc.)
+const corner = (fill, glyph) => `<circle cx="17.5" cy="17.5" r="4.6" fill="${fill}"/><g stroke-width="1.6">${glyph}</g>`;
+const plusAt = (x, y) => `<path d="M${x} ${y - 2}v4M${x - 2} ${y}h4"/>`;
+const xAt = (x, y) => `<path d="M${x - 1.5} ${y - 1.5}l3 3M${x + 1.5} ${y - 1.5}l-3 3"/>`;
+
+function star(cx, cy, ro, ri, n = 5, rot = -Math.PI / 2) {
+  let d = '';
+  for (let i = 0; i < n * 2; i++) {
+    const r = i % 2 ? ri : ro, a = rot + i * Math.PI / n;
+    d += (i ? 'L' : 'M') + (cx + r * Math.cos(a)).toFixed(2) + ' ' + (cy + r * Math.sin(a)).toFixed(2);
+  }
+  return d + 'Z';
+}
+
+function gear(cx, cy, ro, ri, n = 8) {
+  let d = '';
+  for (let i = 0; i < n; i++) {
+    const a = i * 2 * Math.PI / n;
+    const pts = [[ri, a - 0.40], [ro, a - 0.20], [ro, a + 0.20], [ri, a + 0.40]];
+    for (const [r, t] of pts) d += (d ? 'L' : 'M') + (cx + r * Math.cos(t)).toFixed(2) + ' ' + (cy + r * Math.sin(t)).toFixed(2);
+  }
+  return d + 'Z';
+}
+
+const folderBack = `<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" fill="${Y}"/>`;
+const folderOpen = `<path d="M3 18V7a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v1" fill="${Y}"/><path d="M5.6 11.4A2 2 0 0 1 7.5 10H21l-2.4 8.4a2 2 0 0 1-1.9 1.6H3.4z" fill="${P}"/>`;
+const page = (fill = W) => `<path d="M6 3h8l4 4v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" fill="${fill}"/><path d="M14 3v4h4"/>`;
+const heart = (cx, cy, s, fill) => `<path transform="translate(${cx} ${cy}) scale(${s})" d="M0 3.2C-2.6 1.4-4 0-4-1.6A2 2 0 0 1 0-2.6a2 2 0 0 1 4 1C4 0 2.6 1.4 0 3.2z" fill="${fill}"/>`;
+const magnifier = (fill = B) => `<circle cx="10.5" cy="10.5" r="6.5" fill="${fill}"/><path d="M15.5 15.5l5 5" stroke-width="2.6"/><path d="M7.6 9.2a3.2 3.2 0 0 1 2.6-2" stroke="#FFFFFF" stroke-width="1.5"/>`;
+const floppy = `<path d="M5 3h11l3 3v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" fill="${L}"/><rect x="7.5" y="3" width="7" height="4.5" rx="0.8" fill="${W}"/><rect x="6.5" y="12.5" width="11" height="8.5" rx="1.2" fill="${W}"/>${heart(12, 16.6, 0.7, R).replace('fill="', 'stroke="none" fill="')}`;
+const circleFill = (fill) => `<circle cx="12" cy="12" r="9.4" fill="${fill}"/>`;
+const vinyl = (fill) => `<circle cx="12" cy="12" r="9.4" fill="${fill}"/><path d="M6.3 10a6 6 0 0 1 3.7-3.7M17.7 14a6 6 0 0 1-3.7 3.7" stroke="#FFFFFF" stroke-width="1.4"/><circle cx="12" cy="12" r="3.4" fill="${P}"/><circle cx="12" cy="12" r="0.9" fill="${W}" stroke-width="1.2"/>`;
+
+const strawberryIcon = (body, edge, leaf, leafEdge, face) => svg(
+  `<path d="M12 7c4.6-.7 7.8 2.4 7.2 6.4-.6 4.2-4.4 7.6-7.2 8.3-2.8-.7-6.6-4.1-7.2-8.3C4.2 9.4 7.4 6.3 12 7z" fill="${body}" stroke="${edge}" stroke-width="1.5"/>` +
+  `<path d="M12 7.4c-2-.1-3.8-1-4.6-2.4 1.6-.3 3.1.3 4 1.1-.5-1.4-.3-2.9.6-3.8.8 1 1 2.4.7 3.7 1-1.1 2.7-1.6 4.4-1.2-1 1.6-3 2.5-5.1 2.6z" fill="${leaf}" stroke="${leafEdge}" stroke-width="1.2"/>` +
+  `<circle cx="9.4" cy="13.2" r="1.15" fill="${face}" stroke="none"/><circle cx="14.6" cy="13.2" r="1.15" fill="${face}" stroke="none"/>` +
+  `<ellipse cx="7.9" cy="15.3" rx="1.3" ry="0.8" fill="#FF4F86" fill-opacity="0.45" stroke="none"/><ellipse cx="16.1" cy="15.3" rx="1.3" ry="0.8" fill="#FF4F86" fill-opacity="0.45" stroke="none"/>` +
+  `<path d="M11 15.2q.5.8 1 0q.5.8 1 0" stroke="${face}" stroke-width="0.9"/>`);
+
+const ICONS = {
+  // Transport
+  'media-playback-start': badge(`<path d="M10 8.2L16.2 12L10 15.8Z"/>`),
+  'media-playback-pause': badge(`<rect x="8.6" y="8" width="2" height="8" rx="0.6"/><rect x="13.4" y="8" width="2" height="8" rx="0.6"/>`),
+  'media-playback-stop': badge(`<rect x="8.6" y="8.6" width="6.8" height="6.8" rx="1.2"/>`),
+  'media-skip-forward': badge(`<path d="M8.4 8.4L13.4 12L8.4 15.6Z"/><rect x="15" y="8.3" width="0.9" height="7.4" rx="0.4"/>`),
+  'media-skip-backward': badge(`<path d="M15.6 8.4L10.6 12L15.6 15.6Z"/><rect x="8.1" y="8.3" width="0.9" height="7.4" rx="0.4"/>`),
+  'media-seek-forward': badge(`<path d="M6.8 8.6L11.2 12L6.8 15.4Z"/><path d="M12.4 8.6L16.8 12L12.4 15.4Z"/>`),
+  'media-seek-backward': badge(`<path d="M17.2 8.6L12.8 12L17.2 15.4Z"/><path d="M11.6 8.6L7.2 12L11.6 15.4Z"/>`),
+  'media-eject': badge(`<path d="M12 7.6L16.2 12.4H7.8Z"/><rect x="7.8" y="14.4" width="8.4" height="1.4" rx="0.5"/>`),
+  'media-playlist-repeat': svg(`<path d="M17 2.5l3 3-3 3"/><path d="M4 11.5V9.5a4 4 0 0 1 4-4h12"/><path d="M7 21.5l-3-3 3-3"/><path d="M20 12.5v2a4 4 0 0 1-4 4H4"/>${heart(12, 12, 0.6, R).replace('fill="', 'stroke="none" fill="')}`),
+  'media-playlist-shuffle': svg(`<path d="M16 3.5h4.5V8"/><path d="M4 20L20.5 3.5"/><path d="M20.5 16v4.5H16"/><path d="M15 15l5.5 5.5"/><path d="M4 4l5 5"/>`),
+  'media-optical': svg(vinyl(B)),
+  'cdcase': svg(`<rect x="3" y="3" width="18" height="18" rx="2.5" fill="${L}"/><circle cx="12" cy="12" r="5.5" fill="${W}"/><circle cx="12" cy="12" r="1.6" fill="${P}"/>`),
+  'albums': svg(`<rect x="7" y="3" width="14" height="14" rx="2" fill="${L}"/><rect x="3" y="7" width="14" height="14" rx="2" fill="${P}"/><path d="M12 11v6"/><circle cx="10" cy="17" r="2" fill="${W}"/><path d="M12 11l2.5-.8"/>`),
+
+  // Documents & folders
+  'document-new': svg(page() + corner(M, plusAt(17.5, 17.5))),
+  'document-open': svg(folderOpen),
+  'document-open-folder': svg(folderOpen),
+  'folder': svg(folderBack),
+  'folder-new': svg(folderBack + corner(M, plusAt(17.5, 17.5))),
+  'folder-sound': svg(folderBack + `<path d="M13 16.5v-5.5l3.5-1v5"/><circle cx="11.6" cy="16.6" r="1.5" fill="${W}"/><circle cx="15.1" cy="15.1" r="1.5" fill="${W}"/>`),
+  'document-save': svg(floppy),
+  'document-save-all': svg(`<rect x="7" y="1.8" width="14.5" height="14.5" rx="2" fill="${P}"/><g transform="translate(-0.5 2.4) scale(0.88)">${floppy}</g>`),
+  'document-open-remote': svg(`<path d="M7 19a4.5 4.5 0 0 1-.6-9 6 6 0 0 1 11.5-1.6A4.6 4.6 0 0 1 17.4 19z" fill="${B}"/><path d="M12 11v5M9.8 13.2L12 11l2.2 2.2"/>`),
+  'document-download': svg(`<path d="M7 18a4.5 4.5 0 0 1-.6-9 6 6 0 0 1 11.5-1.6A4.6 4.6 0 0 1 17.4 18z" fill="${B}"/><path d="M12 11v9M9.6 17.6L12 20l2.4-2.4"/>`),
+  'download': svg(`<path d="M4 14.5v3.5a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3.5" fill="${M}"/><path d="M12 3.5v11"/><path d="M8 10.5l4 4 4-4"/>`),
+  'document-search': svg(page() + `<circle cx="11" cy="13" r="3.2" fill="${B}"/><path d="M13.4 15.4l2.4 2.4" stroke-width="2"/>`),
+
+  // Editing
+  'edit-undo': svg(`<path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>`),
+  'edit-redo': svg(`<path d="M15 14l5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/>`),
+  'edit-copy': svg(`<rect x="3" y="3" width="12.5" height="12.5" rx="2.2" fill="${W}"/><rect x="8.5" y="8.5" width="12.5" height="12.5" rx="2.2" fill="${P}"/>`),
+  'edit-delete': svg(`<path d="M5 6.5l1.1 13.6a1 1 0 0 0 1 .9h9.8a1 1 0 0 0 1-.9L19 6.5z" fill="${P}"/><path d="M3 6.5h18"/><path d="M8.5 6.5V4a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v2.5"/><path d="M10 10.5v6.5M14 10.5v6.5"/>`),
+  'edit-rename': svg(`<path d="M16.5 3.6a2.1 2.1 0 0 1 3 3L8.2 17.9 4 19l1.1-4.2z" fill="${Y}"/><path d="M14.6 5.5l3 3"/><path d="M13 20.5h7" stroke="${R}" stroke-width="2"/>`),
+  'edit-find': svg(magnifier()),
+  'search': svg(magnifier()),
+  'zoom-in': svg(magnifier() + `<path d="M10.5 8.5v4M8.5 10.5h4" stroke-width="1.6"/>`),
+  'zoom-out': svg(magnifier() + `<path d="M8.5 10.5h4" stroke-width="1.6"/>`),
+  'edit-clear-list': svg(`<path d="M4 6h12M4 10.5h12M4 15h6"/>` + corner(P, xAt(17.5, 17.5))),
+  'edit-clear-locationbar-ltr': svg(`<path d="M21 5H9.2a1 1 0 0 0-.8.4L3 12l5.4 6.6a1 1 0 0 0 .8.4H21a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1z" fill="${P}"/><path d="M12 9l6 6M18 9l-6 6"/>`),
+
+  // Navigation & lists
+  'list-add': svg(circleFill(M) + `<path d="M12 8v8M8 12h8" stroke-width="2"/>`),
+  'list-remove': svg(circleFill(P) + `<path d="M8 12h8" stroke-width="2"/>`),
+  'go-next': svg(circleFill(L) + `<path d="M10.5 8l4 4-4 4" stroke-width="2"/>`),
+  'go-previous': svg(circleFill(L) + `<path d="M13.5 8l-4 4 4 4" stroke-width="2"/>`),
+  'go-up': svg(circleFill(L) + `<path d="M8 13.5l4-4 4 4" stroke-width="2"/>`),
+  'go-down': svg(circleFill(L) + `<path d="M8 10.5l4 4 4-4" stroke-width="2"/>`),
+  'go-home': svg(`<path d="M5 10v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V10" fill="${Y}"/><path d="M3 11.5L12 4l9 7.5"/>${heart(12, 15.5, 0.85, R).replace('fill="', 'stroke="none" fill="')}`),
+  'go-jump': svg(`<path d="M4 18c0-6.5 4.5-10.5 11-10.5h4"/><path d="M16 4.5l3 3-3 3"/><circle cx="4" cy="19.5" r="1.6" fill="${P}"/>`),
+  'view-refresh': svg(`<path d="M20 12a8 8 0 1 1-2.3-5.7"/><path d="M20 4v5h-5"/>${heart(12, 12, 0.75, R).replace('fill="', 'stroke="none" fill="')}`),
+  'view-media-playlist': svg(`<path d="M4 6h11M4 10.5h11M4 15h7"/><path d="M18.5 8v9"/><path d="M18.5 8l2.5-1"/><circle cx="16.4" cy="17.2" r="2.2" fill="${P}"/>`),
+  'view-choose': svg(`<rect x="3.5" y="3.5" width="7" height="7" rx="2" fill="${P}"/><rect x="13.5" y="3.5" width="7" height="7" rx="2" fill="${L}"/><rect x="3.5" y="13.5" width="7" height="7" rx="2" fill="${M}"/><rect x="13.5" y="13.5" width="7" height="7" rx="2" fill="${Y}"/>`),
+  'view-fullscreen': svg(`<path d="M4 9V5a1 1 0 0 1 1-1h4M15 4h4a1 1 0 0 1 1 1v4M20 15v4a1 1 0 0 1-1 1h-4M9 20H5a1 1 0 0 1-1-1v-4"/><rect x="8.5" y="8.5" width="7" height="7" rx="1.8" fill="${P}"/>`),
+  'view-media-lyrics': svg(`<path d="M4 4.5h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1h-8.5L6.5 20.5v-4H4a1 1 0 0 1-1-1v-10a1 1 0 0 1 1-1z" fill="${L}"/><path d="M13 7.5v5.5"/><path d="M13 7.5l2.2-.7"/><circle cx="11.4" cy="13" r="1.6" fill="${W}"/>`),
+  'view-media-visualization': svg(`<rect x="3.5" y="12" width="3.5" height="8.5" rx="1.2" fill="${P}"/><rect x="8.5" y="6" width="3.5" height="14.5" rx="1.2" fill="${L}"/><rect x="13.5" y="9.5" width="3.5" height="11" rx="1.2" fill="${M}"/><rect x="18.5" y="4" width="2.5" height="16.5" rx="1" fill="${Y}"/>`),
+  'equalizer': svg(`<path d="M6 3.5v17M12 3.5v17M18 3.5v17"/><circle cx="6" cy="14" r="2.4" fill="${P}"/><circle cx="12" cy="8" r="2.4" fill="${L}"/><circle cx="18" cy="15.5" r="2.4" fill="${M}"/>`),
+
+  // Tools & misc
+  'configure': svg(`<path d="${gear(12, 12, 10, 7.6)}" fill="${L}"/><circle cx="12" cy="12" r="3" fill="${W}"/>`),
+  'tools-wizard': svg(`<path d="M4 20.5L14.5 10" stroke-width="2.6"/><path d="${star(17, 7, 4.6, 2, 5)}" fill="${Y}" stroke-width="1.5"/><path d="M5 5v3M3.5 6.5h3M19.5 15v3M18 16.5h3" stroke="${R}" stroke-width="1.5"/>`),
+  'keyboard': svg(`<rect x="2.5" y="6" width="19" height="12.5" rx="2.5" fill="${W}"/><g fill="${P}" stroke="none"><rect x="5" y="8.6" width="2" height="2" rx="0.6"/><rect x="8.5" y="8.6" width="2" height="2" rx="0.6"/><rect x="12" y="8.6" width="2" height="2" rx="0.6"/><rect x="15.5" y="8.6" width="3.5" height="2" rx="0.6"/><rect x="5" y="11.8" width="3.5" height="2" rx="0.6"/><rect x="10" y="11.8" width="2" height="2" rx="0.6"/><rect x="13.5" y="11.8" width="2" height="2" rx="0.6"/><rect x="17" y="11.8" width="2" height="2" rx="0.6"/></g><path d="M8 16h8"/>`),
+  'application-exit': badge(`<path d="M12 6.8v5" fill="none" stroke-width="1.8"/><path d="M8.6 9a4.6 4.6 0 1 0 6.8 0" fill="none" stroke-width="1.8"/>`),
+  'help-hint': svg(circleFill(L) + `<path d="M9.6 9.4a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1.1.9-1.1 1.6v.5" stroke-width="2"/><circle cx="12" cy="17" r="0.4" fill="${ST}" stroke-width="1.6"/>`),
+  'dialog-error': svg(circleFill('#FF9DB5') + `<path d="M9 9l6 6M15 9l-6 6" stroke-width="2"/>`),
+  'dialog-information': svg(circleFill(B) + `<path d="M12 11v6" stroke-width="2.2"/><circle cx="12" cy="7.6" r="0.5" fill="${ST}" stroke-width="1.8"/>`),
+  'dialog-warning': svg(`<path d="M10.3 4.1a2 2 0 0 1 3.4 0l8 13.5a2 2 0 0 1-1.7 3H4a2 2 0 0 1-1.7-3z" fill="${Y}"/><path d="M12 9.5v4.5" stroke-width="2.2"/><circle cx="12" cy="17.2" r="0.4" fill="${ST}" stroke-width="1.8"/>`),
+  'dialog-ok-apply': svg(circleFill(M) + `<path d="M7.8 12.4l2.8 2.8 5.6-5.8" stroke-width="2.2"/>`),
+  'dialog-password': svg(`<circle cx="8" cy="15.5" r="4.5" fill="${Y}"/><circle cx="8" cy="15.5" r="1.3" fill="${W}"/><path d="M11.3 12.3L19.5 4"/><path d="M16.2 7.3l2.3 2.3M18.5 5l2 2"/>`),
+  'love': svg(heart(12, 12.3, 2.3, R).replace('scale(2.3)"', 'scale(2.3)" stroke-width="0.75"')),
+  'star': svg(`<path d="${star(12, 12.6, 9.6, 4.4)}" fill="${Y}"/>`),
+  'star-grey': svg(`<path d="${star(12, 12.6, 9.6, 4.4)}" fill="#EFE6EF" stroke="#C9B2CB"/>`),
+  'scrobble': svg(`<circle cx="12" cy="12" r="2.6" fill="${R}"/><path d="M7.8 7.8a6 6 0 0 0 0 8.4M16.2 7.8a6 6 0 0 1 0 8.4"/><path d="M4.9 4.9a10 10 0 0 0 0 14.2M19.1 4.9a10 10 0 0 1 0 14.2" stroke="${L}"/>`),
+  'scrobble-disabled': svg(`<circle cx="12" cy="12" r="2.6" fill="#E8DDE8" stroke="#C9B2CB"/><path d="M7.8 7.8a6 6 0 0 0 0 8.4M16.2 7.8a6 6 0 0 1 0 8.4M4.9 4.9a10 10 0 0 0 0 14.2M19.1 4.9a10 10 0 0 1 0 14.2" stroke="#C9B2CB"/><path d="M4 20L20 4" stroke="${R}" stroke-width="2"/>`),
+
+  // Sidebar
+  'library-music': svg(vinyl(L)),
+  'footsteps': svg(`<g fill="${P}"><ellipse cx="12" cy="15.6" rx="5" ry="4.2"/><ellipse cx="5.6" cy="10" rx="2" ry="2.5" transform="rotate(-20 5.6 10)"/><ellipse cx="9.6" cy="6.2" rx="2.1" ry="2.6" transform="rotate(-6 9.6 6.2)"/><ellipse cx="14.4" cy="6.2" rx="2.1" ry="2.6" transform="rotate(6 14.4 6.2)"/><ellipse cx="18.4" cy="10" rx="2" ry="2.5" transform="rotate(20 18.4 10)"/></g>`),
+  'radio': svg(`<path d="M6.5 8.5L17 3.5"/><rect x="2.8" y="8.5" width="18.4" height="12" rx="3" fill="${P}"/><circle cx="8.6" cy="14.5" r="3.2" fill="${W}"/><circle cx="8.6" cy="14.5" r="1" fill="${P}" stroke-width="1.2"/><path d="M14.5 12.5h3.5M14.5 16.5h3.5"/>`),
+  'device': svg(`<rect x="6" y="2.5" width="12" height="19" rx="3" fill="${L}"/><rect x="8.4" y="5" width="7.2" height="6" rx="1.2" fill="${W}"/><circle cx="12" cy="16" r="2.6" fill="${P}"/><circle cx="12" cy="16" r="0.6" fill="${W}" stroke-width="1"/>`),
+  'device-phone': svg(`<rect x="6" y="2.5" width="12" height="19" rx="3" fill="${L}"/><rect x="8.2" y="5" width="7.6" height="11.5" rx="1.2" fill="${W}"/><path d="M11 19h2"/>`),
+  'device-usb-flash': svg(`<rect x="7" y="8" width="10" height="13" rx="2.5" fill="${P}"/><path d="M9 8V3.5h6V8" fill="${W}"/><path d="M10.8 5.2h.01M13.2 5.2h.01" stroke-width="1.4"/>${heart(12, 14.2, 0.7, W).replace('fill="', 'stroke="none" fill="')}`),
+  'device-usb-drive': svg(`<rect x="3" y="7" width="18" height="10" rx="3" fill="${L}"/><circle cx="17" cy="12" r="1.2" fill="${M}" stroke-width="1.2"/><path d="M6.5 12h6"/>`),
+  'headset': svg(`<path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="2.8" y="13.5" width="4.8" height="7" rx="2" fill="${P}"/><rect x="16.4" y="13.5" width="4.8" height="7" rx="2" fill="${P}"/>`),
+  'speaker': svg(`<path d="M4 9h3.5L13 4.5v15L7.5 15H4a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1z" fill="${P}"/><path d="M16.5 9a4.2 4.2 0 0 1 0 6M19.2 6.3a8 8 0 0 1 0 11.4"/>`),
+  'soundcard': svg(`<rect x="3" y="6" width="18" height="11" rx="2" fill="${M}"/><path d="M6 17v3M9 17v3M12 17v3M15 17v3M18 17v3"/><circle cx="8.5" cy="11.5" r="2.2" fill="${W}"/><rect x="13" y="9.5" width="5" height="4" rx="1" fill="${P}"/>`),
+  'applications-internet': svg(circleFill(B) + `<path d="M3 12h18M12 2.6c2.6 2.7 3.8 6 3.8 9.4s-1.2 6.7-3.8 9.4c-2.6-2.7-3.8-6-3.8-9.4s1.2-6.7 3.8-9.4z"/>`),
+  // App logo (replaces the strawberry): rounded tile with a heart-headed music note
+  'strawberry': logo('#FFB0CC', '#C9A9FF', '#E25D93'),
+  'strawberry-grey': logo('#E8DFEA', '#D2C6D8', '#B8A8BC'),
+};
+
+function logo(c1, c2, edge) {
+  const gid = 'lg' + c1.slice(1);
+  return svg(
+    `<rect x="1.6" y="1.6" width="20.8" height="20.8" rx="6.4" fill="url(#${gid})" stroke="${edge}" stroke-width="1"/>` +
+    `<path d="M6.2 7.6a4.6 4.6 0 0 1 3-2.6" stroke="#FFFFFF" stroke-opacity="0.75" stroke-width="1.3"/>` +
+    `<path d="M14.6 13.2V5.4c1.7.5 3.2 1.6 3.6 3.6" stroke="#FFFFFF" stroke-width="1.9"/>` +
+    heart(12.3, 15.8, 1.12, '#FFFFFF').replace('fill="', 'stroke="none" fill="') +
+    `<path d="M6.6 11.6v1.6M5.8 12.4h1.6" stroke="#FFFFFF" stroke-width="1"/>`,
+    `<linearGradient id="${gid}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${c1}"/><stop offset="1" stop-color="${c2}"/></linearGradient>`);
+}
+
+// Chibi cat with headphones (replaces the strawberry mascot). mood: 'happy' | 'confused'
+function cat(mood) {
+  const eyes = mood === 'confused'
+    ? `<g fill="none" stroke="#4A2C3F" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"><path d="M88 160l14 8-14 8"/><path d="M172 160l-14 8 14 8"/></g>`
+    : `<ellipse cx="98" cy="166" rx="12" ry="15" fill="#4A2C3F"/><ellipse cx="162" cy="166" rx="12" ry="15" fill="#4A2C3F"/>` +
+      `<circle cx="102" cy="160" r="5" fill="#FFFFFF"/><circle cx="166" cy="160" r="5" fill="#FFFFFF"/><circle cx="95" cy="172" r="2.2" fill="#FFFFFF"/><circle cx="159" cy="172" r="2.2" fill="#FFFFFF"/>`;
+  const extra = mood === 'confused'
+    ? `<circle cx="222" cy="58" r="22" fill="#DCC8FF" stroke="#6B4470" stroke-width="3"/><path d="M214 52a8 8 0 1 1 11 7.4c-1.8.8-3 2.6-3 4.6v1" fill="none" stroke="#6B4470" stroke-width="4.5" stroke-linecap="round"/><circle cx="222" cy="73" r="2.6" fill="#6B4470"/>` +
+      `<path d="M196 118c4 6 6 9.5 6 12a6 6 0 0 1-12 0c0-2.5 2-6 6-12z" fill="#C4E4FF" stroke="#6B4470" stroke-width="2.5"/>`
+    : `<g fill="#C9A9FF"><path d="M214 40v26"/><ellipse cx="208" cy="68" rx="8" ry="6" transform="rotate(-20 208 68)"/></g><path d="M214 40v26M214 40l14 5" stroke="#C9A9FF" stroke-width="4.5" stroke-linecap="round" fill="none"/>` +
+      `<g fill="#FF9EC0"><ellipse cx="40" cy="82" rx="7" ry="5.4" transform="rotate(-20 40 82)"/></g><path d="M46 80V56l14 4" stroke="#FF9EC0" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>` +
+      `<path d="${star(232, 120, 9, 3.6, 4, 0)}" fill="#FFD36E"/><path d="${star(28, 140, 8, 3.2, 4, 0)}" fill="#C9A9FF"/>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 280">
+    <path d="M130 245c-46 0-82-12-82-26s36-20 82-20 82 6 82 20-36 26-82 26z" fill="#FFD6E7" opacity="0.6"/>
+    <!-- ears -->
+    <path d="M62 128L66 52Q70 44 78 50L124 92Z" fill="#FFF8FB" stroke="#6B4470" stroke-width="5" stroke-linejoin="round"/>
+    <path d="M198 128L194 52Q190 44 182 50L136 92Z" fill="#FFF8FB" stroke="#6B4470" stroke-width="5" stroke-linejoin="round"/>
+    <path d="M76 100L78 66L104 90Z" fill="#FFB6CF"/><path d="M184 100L182 66L156 90Z" fill="#FFB6CF"/>
+    <!-- head -->
+    <ellipse cx="130" cy="160" rx="92" ry="76" fill="#FFF8FB" stroke="#6B4470" stroke-width="5"/>
+    <!-- headphones -->
+    <path d="M44 150C44 70 216 70 216 150" fill="none" stroke="#C9A9FF" stroke-width="12" stroke-linecap="round"/>
+    <path d="M44 150C44 70 216 70 216 150" fill="none" stroke="#6B4470" stroke-width="3" stroke-linecap="round" opacity="0.5"/>
+    <rect x="24" y="128" width="34" height="62" rx="15" fill="#FF9EC0" stroke="#6B4470" stroke-width="5"/>
+    <rect x="202" y="128" width="34" height="62" rx="15" fill="#FF9EC0" stroke="#6B4470" stroke-width="5"/>
+    <path d="M34 144v30M226 144v30" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" opacity="0.7"/>
+    ${eyes}
+    <!-- blush, nose, mouth, whiskers -->
+    <ellipse cx="80" cy="190" rx="14" ry="8" fill="#FF4F86" opacity="0.32"/><ellipse cx="180" cy="190" rx="14" ry="8" fill="#FF4F86" opacity="0.32"/>
+    <path d="M125 180h10l-5 5z" fill="#FF8FB8" stroke="#FF8FB8" stroke-width="2" stroke-linejoin="round"/>
+    <path d="M118 190q6 8 12 0q6 8 12 0" fill="none" stroke="#4A2C3F" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M70 176l-22-4M70 184l-22 4M190 176l22-4M190 184l22 4" stroke="#6B4470" stroke-width="3" stroke-linecap="round" opacity="0.55"/>
+    ${extra}
+  </svg>`;
+}
+
+// Scattered pastel hearts, notes and sparkles (replaces the "Strawbs" background picture)
+function pattern(w, h) {
+  let seed = 7;
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const cols = ['#FFB6CF', '#DCC8FF', '#BDEFD0', '#FFE7A3', '#C4E4FF'];
+  let items = '';
+  for (let i = 0; i < 70; i++) {
+    const x = rnd() * w, y = rnd() * h, s = 0.9 + rnd() * 1.6, c = cols[Math.floor(rnd() * cols.length)], kind = Math.floor(rnd() * 3), rot = Math.round(rnd() * 50 - 25);
+    const g = kind === 0 ? `<path d="M0 3.2C-2.6 1.4-4 0-4-1.6A2 2 0 0 1 0-2.6a2 2 0 0 1 4 1C4 0 2.6 1.4 0 3.2z" fill="${c}"/>`
+            : kind === 1 ? `<path d="${star(0, 0, 4.5, 1.6, 4, 0)}" fill="${c}"/>`
+            : `<path d="M1.6 2.6V-4.4l3 1" stroke="${c}" stroke-width="1.3" fill="none" stroke-linecap="round"/><ellipse cx="0" cy="2.8" rx="2" ry="1.5" fill="${c}"/>`;
+    items += `<g transform="translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${rot}) scale(${(s * 3).toFixed(2)})">${g}</g>`;
+  }
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}">${items}</svg>`;
+}
+
+const ASSETS = [
+  // [svg, width, height, output path]
+  [cat('happy'), 260, 280, 'data/pictures/mascot.png'],
+  [cat('confused'), 75, 75, 'data/pictures/nomusic.png'],
+  [cat('happy'), 512, 512, 'data/pictures/strawberry.png'],
+  [ICONS['strawberry'], 512, 512, 'data/icons/full/strawberry.png'],
+  [ICONS['strawberry-grey'], 512, 512, 'data/icons/full/strawberry-grey.png'],
+  [ICONS['strawberry-grey'], 512, 512, 'data/pictures/strawberry-grey.png'],
+  [ICONS['strawberry'].replace('<svg ', '<svg opacity="0.35" '), 512, 512, 'data/pictures/strawberry-faded.png'],
+  [pattern(590, 800), 590, 800, 'data/pictures/strawbs.png'],
+  // Windows .ico frames
+  ...[16, 24, 32, 48, 64, 128, 256].map(s => [ICONS['strawberry'], s, s, `ico:${s}`]),
+];
+
+const SIZES = [22, 32, 48, 64, 128];
+const out = document.getElementById('out');
+const lines = [];
+
+function render(name, svgText, size, height = size) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = size; c.height = height;
+      const ctx = c.getContext('2d');
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(img, 0, 0, size, height);
+      resolve(c.toDataURL('image/png').split(',')[1]);
+    };
+    img.onerror = () => resolve('ERROR');
+    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgText.replace('<svg ', `<svg width="${size}" height="${height}" `));
+  });
+}
+
+(async () => {
+  for (const [name, s] of Object.entries(ICONS)) {
+    for (const size of SIZES) {
+      lines.push(`${name}|${size}|${await render(name, s, size)}`);
+    }
+  }
+  for (const [s, w, h, path] of ASSETS) {
+    lines.push(`@file|${path}|${await render(path, s, w, h)}`);
+  }
+  out.textContent = '@@BEGIN@@\n' + lines.join('\n') + '\n@@END@@';
+})();
+
+// Preview sheet when opened in a normal browser
+if (location.hash === '#preview') {
+  document.body.style.background = '#FFF0F6';
+  out.style.display = 'none';
+  for (const [s, w, h, path] of ASSETS.filter(a => !a[3].startsWith('ico:'))) {
+    const d = document.createElement('div');
+    d.style.cssText = 'display:inline-flex;flex-direction:column;align-items:center;margin:6px;font:10px sans-serif;color:#6B4470;vertical-align:top';
+    const pw = Math.min(w, 180), ph = Math.round(h * pw / w);
+    d.innerHTML = s.replace('<svg ', `<svg width="${pw}" height="${ph}" `) + `<span>${path.split('/').pop()}</span>`;
+    document.body.appendChild(d);
+  }
+  for (const [name, s] of Object.entries(ICONS)) {
+    const d = document.createElement('div');
+    d.style.cssText = 'display:inline-flex;flex-direction:column;align-items:center;width:96px;margin:6px;font:10px sans-serif;color:#6B4470';
+    d.innerHTML = s.replace('<svg ', '<svg width="48" height="48" ') + s.replace('<svg ', '<svg width="22" height="22" ') + `<span>${name}</span>`;
+    document.body.appendChild(d);
+  }
+}
+</script>
+</body></html>
